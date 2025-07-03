@@ -14,6 +14,9 @@ export type Database = {
           category: string | null
           content: string
           created_at: string | null
+          encrypted: boolean | null
+          encryption_iv: string | null
+          encryption_salt: string | null
           id: string
           starred: boolean | null
           tags: string[] | null
@@ -25,6 +28,9 @@ export type Database = {
           category?: string | null
           content?: string
           created_at?: string | null
+          encrypted?: boolean | null
+          encryption_iv?: string | null
+          encryption_salt?: string | null
           id?: string
           starred?: boolean | null
           tags?: string[] | null
@@ -36,6 +42,9 @@ export type Database = {
           category?: string | null
           content?: string
           created_at?: string | null
+          encrypted?: boolean | null
+          encryption_iv?: string | null
+          encryption_salt?: string | null
           id?: string
           starred?: boolean | null
           tags?: string[] | null
@@ -51,6 +60,9 @@ export type Database = {
           created_at: string | null
           description: string | null
           due_date: string | null
+          encrypted: boolean | null
+          encryption_iv: string | null
+          encryption_salt: string | null
           id: string
           linked_event: string | null
           linked_note: string | null
@@ -64,6 +76,9 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           due_date?: string | null
+          encrypted?: boolean | null
+          encryption_iv?: string | null
+          encryption_salt?: string | null
           id?: string
           linked_event?: string | null
           linked_note?: string | null
@@ -77,6 +92,9 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           due_date?: string | null
+          encrypted?: boolean | null
+          encryption_iv?: string | null
+          encryption_salt?: string | null
           id?: string
           linked_event?: string | null
           linked_note?: string | null

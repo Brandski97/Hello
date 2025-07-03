@@ -41,6 +41,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEncryption } from "@/contexts/EncryptionContext";
 
 type Task = {
   id: string;
@@ -54,10 +55,15 @@ type Task = {
   user_id: string;
   created_at: string;
   updated_at: string;
+  encrypted?: boolean;
+  encryption_iv?: string;
+  encryption_salt?: string;
 };
 
 const TaskManager = () => {
   const { user } = useAuth();
+  const { encryptContent, decryptContent, hasValidPassphrase } =
+    useEncryption();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isNewTaskDialogOpen, setIsNewTaskDialogOpen] = useState(false);
   const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false);
@@ -94,7 +100,39 @@ const TaskManager = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setTasks(data || []);
+
+      // Decrypt tasks if encryption is enabled
+      const decryptedTasks = await Promise.all(
+        (data || []).map(async (task) => {
+          if (
+            task.encrypted &&
+            hasValidPassphrase &&
+            task.encryption_iv &&
+            task.encryption_salt
+          ) {
+            try {
+              const decryptedDescription = await decryptContent(
+                task.description,
+                task.encryption_iv,
+                task.encryption_salt,
+              );
+              return {
+                ...task,
+                description: decryptedDescription || "[Decryption failed]",
+              };
+            } catch (error) {
+              console.error("Failed to decrypt task:", error);
+              return {
+                ...task,
+                description: "[Encrypted - Cannot decrypt]",
+              };
+            }
+          }
+          return task;
+        }),
+      );
+
+      setTasks(decryptedTasks);
     } catch (error) {
       console.error("Error fetching tasks:", error);
     } finally {
@@ -121,31 +159,52 @@ const TaskManager = () => {
     if (!user || !newTask.title?.trim()) return;
 
     try {
+      let taskData: any = {
+        title: newTask.title,
+        description: newTask.description || "",
+        priority: newTask.priority || "medium",
+        due_date: newTask.due_date,
+        completed: false,
+        linked_note: newTask.linked_note,
+        user_id: user.id,
+        encrypted: false,
+      };
+
+      // Encrypt description if encryption is enabled and description exists
+      if (hasValidPassphrase && newTask.description) {
+        const encryptionResult = await encryptContent(newTask.description);
+        if (encryptionResult) {
+          taskData = {
+            ...taskData,
+            description: encryptionResult.encryptedData,
+            encrypted: true,
+            encryption_iv: encryptionResult.iv,
+            encryption_salt: encryptionResult.salt,
+          };
+        }
+      }
+
       const { data, error } = await supabase
         .from("tasks")
-        .insert({
-          title: newTask.title,
-          description: newTask.description || "",
-          priority: newTask.priority || "medium",
-          due_date: newTask.due_date,
-          completed: false,
-
-          linked_note: newTask.linked_note,
-          user_id: user.id,
-        })
+        .insert(taskData)
         .select()
         .single();
 
       if (error) throw error;
 
-      setTasks([data, ...tasks]);
+      // If encrypted, show decrypted version in UI
+      const displayTask = {
+        ...data,
+        description: newTask.description || "", // Show original description in UI
+      };
+
+      setTasks([displayTask, ...tasks]);
       setNewTask({
         title: "",
         description: "",
         priority: "medium",
         due_date: null,
         completed: false,
-
         linked_note: "",
       });
       setIsNewTaskDialogOpen(false);
@@ -158,22 +217,48 @@ const TaskManager = () => {
     if (!currentTask) return;
 
     try {
+      let updateData: any = {
+        title: currentTask.title,
+        description: currentTask.description,
+        priority: currentTask.priority,
+        due_date: currentTask.due_date,
+        completed: currentTask.completed,
+        linked_event: currentTask.linked_event,
+        encrypted: false,
+        encryption_iv: null,
+        encryption_salt: null,
+      };
+
+      // Encrypt description if encryption is enabled and description exists
+      if (hasValidPassphrase && currentTask.description) {
+        const encryptionResult = await encryptContent(currentTask.description);
+        if (encryptionResult) {
+          updateData = {
+            ...updateData,
+            description: encryptionResult.encryptedData,
+            encrypted: true,
+            encryption_iv: encryptionResult.iv,
+            encryption_salt: encryptionResult.salt,
+          };
+        }
+      }
+
       const { error } = await supabase
         .from("tasks")
-        .update({
-          title: currentTask.title,
-          description: currentTask.description,
-          priority: currentTask.priority,
-          due_date: currentTask.due_date,
-          completed: currentTask.completed,
-          linked_event: currentTask.linked_event,
-        })
+        .update(updateData)
         .eq("id", currentTask.id);
 
       if (error) throw error;
 
       const updatedTasks = tasks.map((task) =>
-        task.id === currentTask.id ? currentTask : task,
+        task.id === currentTask.id
+          ? {
+              ...currentTask,
+              encrypted: updateData.encrypted,
+              encryption_iv: updateData.encryption_iv,
+              encryption_salt: updateData.encryption_salt,
+            }
+          : task,
       );
       setTasks(updatedTasks);
       setIsEditTaskDialogOpen(false);

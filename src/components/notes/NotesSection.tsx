@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEncryption } from "@/contexts/EncryptionContext";
 
 interface Note {
   id: string;
@@ -52,10 +53,15 @@ interface Note {
   tags?: string[];
   starred?: boolean;
   user_id: string;
+  encrypted?: boolean;
+  encryption_iv?: string;
+  encryption_salt?: string;
 }
 
 const NotesSection = () => {
   const { user } = useAuth();
+  const { encryptContent, decryptContent, hasValidPassphrase } =
+    useEncryption();
   const [notes, setNotes] = useState<Note[]>([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -103,9 +109,41 @@ const NotesSection = () => {
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
-      setNotes(data || []);
-      if (data && data.length > 0 && !selectedNote) {
-        setSelectedNote(data[0]);
+
+      // Decrypt notes if encryption is enabled
+      const decryptedNotes = await Promise.all(
+        (data || []).map(async (note) => {
+          if (
+            note.encrypted &&
+            hasValidPassphrase &&
+            note.encryption_iv &&
+            note.encryption_salt
+          ) {
+            try {
+              const decryptedContent = await decryptContent(
+                note.content,
+                note.encryption_iv,
+                note.encryption_salt,
+              );
+              return {
+                ...note,
+                content: decryptedContent || "[Decryption failed]",
+              };
+            } catch (error) {
+              console.error("Failed to decrypt note:", error);
+              return {
+                ...note,
+                content: "[Encrypted - Cannot decrypt]",
+              };
+            }
+          }
+          return note;
+        }),
+      );
+
+      setNotes(decryptedNotes);
+      if (decryptedNotes && decryptedNotes.length > 0 && !selectedNote) {
+        setSelectedNote(decryptedNotes[0]);
       }
     } catch (error) {
       console.error("Error fetching notes:", error);
@@ -118,22 +156,45 @@ const NotesSection = () => {
     if (!user || !newNote.title.trim()) return;
 
     try {
+      let noteData: any = {
+        title: newNote.title,
+        content: newNote.content,
+        category: newNote.category || null,
+        tags: newNote.tags.length > 0 ? newNote.tags : null,
+        user_id: user.id,
+        encrypted: false,
+      };
+
+      // Encrypt content if encryption is enabled
+      if (hasValidPassphrase && newNote.content) {
+        const encryptionResult = await encryptContent(newNote.content);
+        if (encryptionResult) {
+          noteData = {
+            ...noteData,
+            content: encryptionResult.encryptedData,
+            encrypted: true,
+            encryption_iv: encryptionResult.iv,
+            encryption_salt: encryptionResult.salt,
+          };
+        }
+      }
+
       const { data, error } = await supabase
         .from("notes")
-        .insert({
-          title: newNote.title,
-          content: newNote.content,
-          category: newNote.category || null,
-          tags: newNote.tags.length > 0 ? newNote.tags : null,
-          user_id: user.id,
-        })
+        .insert(noteData)
         .select()
         .single();
 
       if (error) throw error;
 
-      setNotes([data, ...notes]);
-      setSelectedNote(data);
+      // If encrypted, show decrypted version in UI
+      const displayNote = {
+        ...data,
+        content: newNote.content, // Show original content in UI
+      };
+
+      setNotes([displayNote, ...notes]);
+      setSelectedNote(displayNote);
       setNewNote({ title: "", content: "", category: "", tags: [] });
       setIsNewNoteDialogOpen(false);
     } catch (error) {
@@ -199,9 +260,29 @@ const NotesSection = () => {
     if (!selectedNote) return;
 
     try {
+      let updateData: any = {
+        content: editContent,
+        encrypted: false,
+        encryption_iv: null,
+        encryption_salt: null,
+      };
+
+      // Encrypt content if encryption is enabled
+      if (hasValidPassphrase && editContent) {
+        const encryptionResult = await encryptContent(editContent);
+        if (encryptionResult) {
+          updateData = {
+            content: encryptionResult.encryptedData,
+            encrypted: true,
+            encryption_iv: encryptionResult.iv,
+            encryption_salt: encryptionResult.salt,
+          };
+        }
+      }
+
       const { error } = await supabase
         .from("notes")
-        .update({ content: editContent })
+        .update(updateData)
         .eq("id", selectedNote.id);
 
       if (error) throw error;
@@ -210,8 +291,11 @@ const NotesSection = () => {
         note.id === selectedNote.id
           ? {
               ...note,
-              content: editContent,
+              content: editContent, // Show decrypted content in UI
               updated_at: new Date().toISOString(),
+              encrypted: updateData.encrypted,
+              encryption_iv: updateData.encryption_iv,
+              encryption_salt: updateData.encryption_salt,
             }
           : note,
       );
@@ -220,6 +304,9 @@ const NotesSection = () => {
         ...selectedNote,
         content: editContent,
         updated_at: new Date().toISOString(),
+        encrypted: updateData.encrypted,
+        encryption_iv: updateData.encryption_iv,
+        encryption_salt: updateData.encryption_salt,
       });
       setIsEditing(false);
     } catch (error) {

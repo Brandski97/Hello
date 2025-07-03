@@ -13,8 +13,11 @@ import {
   SettingsIcon,
   PlusIcon,
   LogOut,
+  Shield,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEncryption } from "@/contexts/EncryptionContext";
 import CalendarView from "./calendar/CalendarView";
 import NotesSection from "./notes/NotesSection";
 import TaskManager from "./tasks/TaskManager";
@@ -107,6 +110,7 @@ const AIAssistant = () => {
 export default function Home() {
   const [activeView, setActiveView] = useState("calendar");
   const { user, signOut } = useAuth();
+  const { hasValidPassphrase, isEncryptionEnabled } = useEncryption();
 
   const handleSignOut = async () => {
     await signOut();
@@ -189,6 +193,19 @@ export default function Home() {
             </div>
 
             <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-muted text-sm">
+                {hasValidPassphrase ? (
+                  <>
+                    <ShieldCheck className="h-4 w-4 text-green-600" />
+                    <span className="text-green-600">Encrypted</span>
+                  </>
+                ) : (
+                  <>
+                    <Shield className="h-4 w-4 text-gray-500" />
+                    <span className="text-gray-500">Not Encrypted</span>
+                  </>
+                )}
+              </div>
               <Button variant="outline" size="icon">
                 <PlusIcon className="h-4 w-4" />
               </Button>
