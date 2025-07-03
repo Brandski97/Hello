@@ -282,107 +282,108 @@ const NotesSection = () => {
         {/* Sidebar */}
         <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
           <div className="border-r p-4 flex flex-col h-full">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold">Notes</h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsNewNoteDialogOpen(true)}
-          >
-            <Plus className="h-5 w-5" />
-          </Button>
-        </div>
-
-        <div className="relative mb-4">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search notes..."
-            className="pl-8"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        <div className="mb-6">
-          <div className="flex items-center text-sm text-muted-foreground mb-2">
-            <ChevronDown className="h-4 w-4 mr-1" />
-            <span>Categories</span>
-          </div>
-          <div className="ml-6 space-y-1">
-            <div
-              className={`flex items-center text-sm py-1 hover:text-primary cursor-pointer ${
-                selectedCategory === null ? "text-primary font-medium" : ""
-              }`}
-              onClick={() => handleCategoryFilter(null)}
-            >
-              <Folder className="h-4 w-4 mr-2" />
-              <span>All Categories</span>
-            </div>
-            {categories.map((category) => (
-              <div
-                key={category}
-                className={`flex items-center text-sm py-1 hover:text-primary cursor-pointer ${
-                  selectedCategory === category
-                    ? "text-primary font-medium"
-                    : ""
-                }`}
-                onClick={() => handleCategoryFilter(category)}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold">Notes</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsNewNoteDialogOpen(true)}
               >
-                <Folder className="h-4 w-4 mr-2" />
-                <span>{category}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <div className="flex items-center text-sm text-muted-foreground mb-2">
-            <ChevronDown className="h-4 w-4 mr-1" />
-            <span>Tags</span>
-          </div>
-          <div className="ml-6 space-y-1">
-            <div
-              className={`flex items-center text-sm py-1 hover:text-primary cursor-pointer ${
-                selectedTag === null ? "text-primary font-medium" : ""
-              }`}
-              onClick={() => handleTagFilter(null)}
-            >
-              <Tag className="h-4 w-4 mr-2" />
-              <span>All Tags</span>
+                <Plus className="h-5 w-5" />
+              </Button>
             </div>
-            {allTags.map((tag) => (
-              <div
-                key={tag}
-                className={`flex items-center text-sm py-1 hover:text-primary cursor-pointer ${
-                  selectedTag === tag ? "text-primary font-medium" : ""
-                }`}
-                onClick={() => handleTagFilter(tag)}
-              >
-                <Tag className="h-4 w-4 mr-2" />
-                <span>{tag}</span>
-              </div>
-            ))}
-          </div>
-        </div>
 
-        <div className="mb-6">
-          <div
-            className={`flex items-center text-sm py-1 hover:text-primary cursor-pointer ${
-              showStarred ? "text-primary font-medium" : ""
-            }`}
-            onClick={handleStarredFilter}
-          >
-            <Star className="h-4 w-4 mr-2" />
-            <span>Starred</span>
-          </div>
-          <div className="flex items-center text-sm py-1 hover:text-primary cursor-pointer">
-            <Clock className="h-4 w-4 mr-2" />
-            <span>Recent</span>
-          </div>
-          <div className="flex items-center text-sm py-1 hover:text-primary cursor-pointer">
-            <Trash className="h-4 w-4 mr-2" />
-            <span>Trash</span>
-          </div>
+            <div className="relative mb-4">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search notes..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <div className="mb-6">
+              <div className="flex items-center text-sm text-muted-foreground mb-2">
+                <ChevronDown className="h-4 w-4 mr-1" />
+                <span>Categories</span>
+              </div>
+              <div className="ml-6 space-y-1">
+                <div
+                  className={`flex items-center text-sm py-1 hover:text-primary cursor-pointer ${
+                    selectedCategory === null ? "text-primary font-medium" : ""
+                  }`}
+                  onClick={() => handleCategoryFilter(null)}
+                >
+                  <Folder className="h-4 w-4 mr-2" />
+                  <span>All Categories</span>
+                </div>
+                {categories.map((category) => (
+                  <div
+                    key={category}
+                    className={`flex items-center text-sm py-1 hover:text-primary cursor-pointer ${
+                      selectedCategory === category
+                        ? "text-primary font-medium"
+                        : ""
+                    }`}
+                    onClick={() => handleCategoryFilter(category)}
+                  >
+                    <Folder className="h-4 w-4 mr-2" />
+                    <span>{category}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <div className="flex items-center text-sm text-muted-foreground mb-2">
+                <ChevronDown className="h-4 w-4 mr-1" />
+                <span>Tags</span>
+              </div>
+              <div className="ml-6 space-y-1">
+                <div
+                  className={`flex items-center text-sm py-1 hover:text-primary cursor-pointer ${
+                    selectedTag === null ? "text-primary font-medium" : ""
+                  }`}
+                  onClick={() => handleTagFilter(null)}
+                >
+                  <Tag className="h-4 w-4 mr-2" />
+                  <span>All Tags</span>
+                </div>
+                {allTags.map((tag) => (
+                  <div
+                    key={tag}
+                    className={`flex items-center text-sm py-1 hover:text-primary cursor-pointer ${
+                      selectedTag === tag ? "text-primary font-medium" : ""
+                    }`}
+                    onClick={() => handleTagFilter(tag)}
+                  >
+                    <Tag className="h-4 w-4 mr-2" />
+                    <span>{tag}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <div
+                className={`flex items-center text-sm py-1 hover:text-primary cursor-pointer ${
+                  showStarred ? "text-primary font-medium" : ""
+                }`}
+                onClick={handleStarredFilter}
+              >
+                <Star className="h-4 w-4 mr-2" />
+                <span>Starred</span>
+              </div>
+              <div className="flex items-center text-sm py-1 hover:text-primary cursor-pointer">
+                <Clock className="h-4 w-4 mr-2" />
+                <span>Recent</span>
+              </div>
+              <div className="flex items-center text-sm py-1 hover:text-primary cursor-pointer">
+                <Trash className="h-4 w-4 mr-2" />
+                <span>Trash</span>
+              </div>
+            </div>
           </div>
         </ResizablePanel>
 
@@ -391,76 +392,81 @@ const NotesSection = () => {
         {/* Notes List */}
         <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
           <div className="border-r h-full">
-        <div className="p-4 border-b">
-          <h3 className="font-medium">All Notes ({filteredNotes.length})</h3>
-        </div>
-        <ScrollArea className="h-[calc(100vh-10rem)]">
-          <div className="p-2">
-            {filteredNotes.map((note) => (
-              <Card
-                key={note.id}
-                className={`mb-2 cursor-pointer hover:bg-accent ${selectedNote?.id === note.id ? "bg-accent" : ""}`}
-                onClick={() => handleNoteSelect(note)}
-              >
-                <CardContent className="p-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium truncate">{note.title}</h4>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleStar(note.id);
-                        }}
-                      >
-                        <Star
-                          className={`h-3 w-3 ${note.starred ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}`}
-                        />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 text-red-500 hover:text-red-600"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteNote(note.id);
-                        }}
-                      >
-                        <Trash className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground truncate mt-1">
-                    {note.content.replace(/[#*_\n]/g, "")}
-                  </p>
-                  <div className="mt-2">
-                    {note.category && (
-                      <Badge variant="outline" className="text-xs mb-1 mr-1">
-                        {note.category}
-                      </Badge>
-                    )}
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      {note.tags?.map((tag) => (
-                        <Badge
-                          key={tag}
-                          variant="secondary"
-                          className="text-xs"
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(note.updated_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            <div className="p-4 border-b">
+              <h3 className="font-medium">
+                All Notes ({filteredNotes.length})
+              </h3>
             </div>
-          </ScrollArea>
+            <ScrollArea className="h-[calc(100vh-10rem)]">
+              <div className="p-2">
+                {filteredNotes.map((note) => (
+                  <Card
+                    key={note.id}
+                    className={`mb-2 cursor-pointer hover:bg-accent ${selectedNote?.id === note.id ? "bg-accent" : ""}`}
+                    onClick={() => handleNoteSelect(note)}
+                  >
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium truncate">{note.title}</h4>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleStar(note.id);
+                            }}
+                          >
+                            <Star
+                              className={`h-3 w-3 ${note.starred ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}`}
+                            />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-red-500 hover:text-red-600"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteNote(note.id);
+                            }}
+                          >
+                            <Trash className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate mt-1">
+                        {note.content.replace(/[#*_\n]/g, "")}
+                      </p>
+                      <div className="mt-2">
+                        {note.category && (
+                          <Badge
+                            variant="outline"
+                            className="text-xs mb-1 mr-1"
+                          >
+                            {note.category}
+                          </Badge>
+                        )}
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {note.tags?.map((tag) => (
+                            <Badge
+                              key={tag}
+                              variant="secondary"
+                              className="text-xs"
+                            >
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(note.updated_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </ScrollArea>
           </div>
         </ResizablePanel>
 
@@ -469,78 +475,87 @@ const NotesSection = () => {
         {/* Note Editor */}
         <ResizablePanel defaultSize={55} minSize={40}>
           <div className="flex flex-col h-full">
-        {selectedNote ? (
-          <>
-            <div className="p-4 border-b flex justify-between items-center">
-              <h2 className="text-xl font-semibold">{selectedNote.title}</h2>
-              <div className="flex gap-2">
-                {isEditing ? (
-                  <Button size="sm" onClick={handleSaveEdit}>
-                    Save
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="outline" onClick={handleEditClick}>
-                    Edit
-                  </Button>
-                )}
-              </div>
-            </div>
-            <div className="flex-1 overflow-auto p-6">
-              {isEditing ? (
-                <Textarea
-                  className="min-h-[calc(100vh-12rem)] w-full p-4 font-mono"
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                />
-              ) : (
-                <div className="prose prose-sm max-w-none">
-                  {selectedNote.content.split("\n").map((line, i) => (
-                    <div key={i} className="mb-2">
-                      {line.startsWith("# ") ? (
-                        <h1 className="text-2xl font-bold">
-                          {line.substring(2)}
-                        </h1>
-                      ) : line.startsWith("## ") ? (
-                        <h2 className="text-xl font-bold">
-                          {line.substring(3)}
-                        </h2>
-                      ) : line.startsWith("### ") ? (
-                        <h3 className="text-lg font-bold">
-                          {line.substring(4)}
-                        </h3>
-                      ) : line.startsWith("- ") ? (
-                        <div className="flex">
-                          <span className="mr-2">•</span>
-                          <span>{line.substring(2)}</span>
-                        </div>
-                      ) : line.startsWith("1. ") ||
-                        line.startsWith("2. ") ||
-                        line.startsWith("3. ") ? (
-                        <div className="flex">
-                          <span className="mr-2">{line.substring(0, 2)}</span>
-                          <span>{line.substring(3)}</span>
-                        </div>
-                      ) : line.startsWith("**") && line.endsWith("**") ? (
-                        <p className="font-bold">
-                          {line.substring(2, line.length - 2)}
-                        </p>
-                      ) : (
-                        <p>{line}</p>
-                      )}
-                    </div>
-                  ))}
+            {selectedNote ? (
+              <>
+                <div className="p-4 border-b flex justify-between items-center">
+                  <h2 className="text-xl font-semibold">
+                    {selectedNote.title}
+                  </h2>
+                  <div className="flex gap-2">
+                    {isEditing ? (
+                      <Button size="sm" onClick={handleSaveEdit}>
+                        Save
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleEditClick}
+                      >
+                        Edit
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
-            <div className="p-3 border-t text-xs text-muted-foreground">
-              Last updated: {new Date(selectedNote.updated_at).toLocaleString()}
-            </div>
-          </>
-        ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            {loading ? "Loading notes..." : "No note selected"}
-          </div>
-        )}
+                <div className="flex-1 overflow-auto p-6">
+                  {isEditing ? (
+                    <Textarea
+                      className="min-h-[calc(100vh-12rem)] w-full p-4 font-mono"
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                    />
+                  ) : (
+                    <div className="prose prose-sm max-w-none">
+                      {selectedNote.content.split("\n").map((line, i) => (
+                        <div key={i} className="mb-2">
+                          {line.startsWith("# ") ? (
+                            <h1 className="text-2xl font-bold">
+                              {line.substring(2)}
+                            </h1>
+                          ) : line.startsWith("## ") ? (
+                            <h2 className="text-xl font-bold">
+                              {line.substring(3)}
+                            </h2>
+                          ) : line.startsWith("### ") ? (
+                            <h3 className="text-lg font-bold">
+                              {line.substring(4)}
+                            </h3>
+                          ) : line.startsWith("- ") ? (
+                            <div className="flex">
+                              <span className="mr-2">•</span>
+                              <span>{line.substring(2)}</span>
+                            </div>
+                          ) : line.startsWith("1. ") ||
+                            line.startsWith("2. ") ||
+                            line.startsWith("3. ") ? (
+                            <div className="flex">
+                              <span className="mr-2">
+                                {line.substring(0, 2)}
+                              </span>
+                              <span>{line.substring(3)}</span>
+                            </div>
+                          ) : line.startsWith("**") && line.endsWith("**") ? (
+                            <p className="font-bold">
+                              {line.substring(2, line.length - 2)}
+                            </p>
+                          ) : (
+                            <p>{line}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="p-3 border-t text-xs text-muted-foreground">
+                  Last updated:{" "}
+                  {new Date(selectedNote.updated_at).toLocaleString()}
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                {loading ? "Loading notes..." : "No note selected"}
+              </div>
+            )}
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
