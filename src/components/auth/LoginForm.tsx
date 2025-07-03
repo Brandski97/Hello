@@ -43,34 +43,41 @@ const LoginForm: React.FC<LoginFormProps> = ({
   };
 
   return (
-    <Card className="w-full max-w-md bg-white">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold text-center">
+    <Card className="w-full max-w-md bg-card border-border shadow-xl">
+      <CardHeader className="space-y-1 pb-6">
+        <CardTitle className="text-2xl font-bold text-center text-foreground">
           Welcome back
         </CardTitle>
-        <CardDescription className="text-center">
-          Sign in to your productivity workspace
+        <CardDescription className="text-center text-muted-foreground">
+          Sign in to your private workspace
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <CardContent className="px-6 pb-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
+            <Alert
+              variant="destructive"
+              className="bg-destructive/10 border-destructive/20"
+            >
+              <AlertDescription className="text-destructive">
+                {error}
+              </AlertDescription>
             </Alert>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email" className="text-foreground font-medium">
+              Email
+            </Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 id="email"
                 type="email"
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="pl-10"
+                className="pl-11 h-12 bg-background border-border focus:border-primary focus:ring-primary/20"
                 required
                 disabled={loading}
               />
@@ -78,32 +85,38 @@ const LoginForm: React.FC<LoginFormProps> = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password" className="text-foreground font-medium">
+              Password
+            </Label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 id="password"
                 type="password"
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="pl-10"
+                className="pl-11 h-12 bg-background border-border focus:border-primary focus:ring-primary/20"
                 required
                 disabled={loading}
               />
             </div>
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button
+            type="submit"
+            className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+            disabled={loading}
+          >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Sign In
+            Sign In Securely
           </Button>
         </form>
 
-        <div className="mt-4 text-center space-y-2">
+        <div className="mt-6 text-center space-y-3">
           <Button
             variant="link"
-            className="text-sm text-muted-foreground"
+            className="text-sm text-muted-foreground hover:text-primary"
             onClick={onForgotPassword}
           >
             Forgot your password?
@@ -112,10 +125,10 @@ const LoginForm: React.FC<LoginFormProps> = ({
             Don&apos;t have an account?{" "}
             <Button
               variant="link"
-              className="p-0 h-auto"
+              className="p-0 h-auto text-primary hover:text-primary/80 font-medium"
               onClick={onToggleMode}
             >
-              Sign up
+              Create secure account
             </Button>
           </div>
         </div>

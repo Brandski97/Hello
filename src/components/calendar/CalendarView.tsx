@@ -579,10 +579,22 @@ const CalendarView = () => {
   };
 
   return (
-    <Card className="w-full h-full bg-white">
-      <CardHeader className="pb-2">
+    <Card className="w-full h-full bg-card border-border">
+      <CardHeader className="pb-4 border-b border-border">
         <div className="flex justify-between items-center">
-          <CardTitle>Calendar</CardTitle>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
+              <CalendarIcon className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-foreground">
+                Private Calendar
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Your encrypted schedule
+              </p>
+            </div>
+          </div>
           <div className="flex items-center space-x-2">
             <Button variant="outline" size="sm" onClick={handleToday}>
               Today

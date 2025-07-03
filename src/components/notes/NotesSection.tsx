@@ -12,6 +12,7 @@ import {
   Edit,
   Save,
   X,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -368,13 +369,24 @@ const NotesSection = () => {
       <ResizablePanelGroup direction="horizontal" className="h-full">
         {/* Sidebar */}
         <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-          <div className="border-r p-4 flex flex-col h-full">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold">Notes</h2>
+          <div className="border-r border-border p-6 flex flex-col h-full bg-card/30">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
+                  <FileText className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-foreground">
+                    Secure Notes
+                  </h2>
+                  <p className="text-xs text-muted-foreground">Encrypted</p>
+                </div>
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsNewNoteDialogOpen(true)}
+                className="hover:bg-accent/50"
               >
                 <Plus className="h-5 w-5" />
               </Button>
@@ -478,9 +490,9 @@ const NotesSection = () => {
 
         {/* Notes List */}
         <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
-          <div className="border-r h-full">
-            <div className="p-4 border-b">
-              <h3 className="font-medium">
+          <div className="border-r border-border h-full bg-card/20">
+            <div className="p-6 border-b border-border">
+              <h3 className="font-medium text-foreground">
                 All Notes ({filteredNotes.length})
               </h3>
             </div>
@@ -489,7 +501,7 @@ const NotesSection = () => {
                 {filteredNotes.map((note) => (
                   <Card
                     key={note.id}
-                    className={`mb-2 cursor-pointer hover:bg-accent ${selectedNote?.id === note.id ? "bg-accent" : ""}`}
+                    className={`mb-3 cursor-pointer hover:bg-accent/50 transition-colors duration-200 border-border ${selectedNote?.id === note.id ? "bg-accent/30 border-primary/30" : ""}`}
                     onClick={() => handleNoteSelect(note)}
                   >
                     <CardContent className="p-3">
@@ -561,11 +573,11 @@ const NotesSection = () => {
 
         {/* Note Editor */}
         <ResizablePanel defaultSize={55} minSize={40}>
-          <div className="flex flex-col h-full">
+          <div className="flex flex-col h-full bg-background">
             {selectedNote ? (
               <>
-                <div className="p-4 border-b flex justify-between items-center">
-                  <h2 className="text-xl font-semibold">
+                <div className="p-6 border-b border-border flex justify-between items-center bg-card/30">
+                  <h2 className="text-xl font-semibold text-foreground">
                     {selectedNote.title}
                   </h2>
                   <div className="flex gap-2">

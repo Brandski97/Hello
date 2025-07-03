@@ -10,6 +10,7 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
+  CheckSquare,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -355,21 +356,56 @@ const TaskManager = () => {
   };
 
   return (
-    <div className="bg-white h-full flex flex-col">
-      <div className="p-6 border-b">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-semibold">Task Manager</h1>
-          <Button onClick={() => setIsNewTaskDialogOpen(true)}>
+    <div className="bg-background h-full flex flex-col">
+      <div className="p-8 border-b border-border">
+        <div className="flex justify-between items-center mb-8">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
+              <CheckSquare className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-semibold text-foreground">
+                Secure Tasks
+              </h1>
+              <p className="text-muted-foreground">
+                Your encrypted task management
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={() => setIsNewTaskDialogOpen(true)}
+            className="h-11 bg-primary hover:bg-primary/90 text-primary-foreground"
+          >
             <Plus className="mr-2 h-4 w-4" /> New Task
           </Button>
         </div>
 
         <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-4 mb-6">
-            <TabsTrigger value="all">All Tasks</TabsTrigger>
-            <TabsTrigger value="pending">Pending</TabsTrigger>
-            <TabsTrigger value="high">High Priority</TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
+          <TabsList className="grid grid-cols-4 mb-8 bg-muted/30 border border-border">
+            <TabsTrigger
+              value="all"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              All Tasks
+            </TabsTrigger>
+            <TabsTrigger
+              value="pending"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              Pending
+            </TabsTrigger>
+            <TabsTrigger
+              value="high"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              High Priority
+            </TabsTrigger>
+            <TabsTrigger
+              value="completed"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              Completed
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value={activeTab} className="space-y-4">
@@ -380,14 +416,17 @@ const TaskManager = () => {
                 </CardContent>
               </Card>
             ) : filteredTasks.length === 0 ? (
-              <Card>
+              <Card className="bg-card border-border">
                 <CardContent className="pt-6 text-center text-muted-foreground">
                   No tasks found. Create a new task to get started.
                 </CardContent>
               </Card>
             ) : (
               filteredTasks.map((task) => (
-                <Card key={task.id} className="overflow-hidden">
+                <Card
+                  key={task.id}
+                  className="overflow-hidden bg-card border-border hover:bg-card/80 transition-colors duration-200"
+                >
                   <CardContent className="p-0">
                     <div className="flex items-start p-4 gap-3">
                       <button
