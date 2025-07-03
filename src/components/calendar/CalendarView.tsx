@@ -17,6 +17,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
+  Clock,
+  FileText,
+  CheckSquare,
+  Shield,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -35,6 +39,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -93,6 +104,9 @@ const CalendarView = () => {
     linked_task: "",
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedEventForView, setSelectedEventForView] =
+    useState<Event | null>(null);
+  const [isEventSheetOpen, setIsEventSheetOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -322,12 +336,16 @@ const CalendarView = () => {
               return (
                 <div
                   key={event.id}
-                  className={`absolute rounded-md p-2 text-white text-xs ${event.color || "bg-blue-500"} cursor-pointer hover:opacity-90`}
+                  className={`absolute rounded-md p-2 text-white text-xs ${event.color || "bg-blue-500"} cursor-pointer hover:opacity-90 transition-all duration-200 hover:scale-105`}
                   style={{
                     top: `${startHour * 4}rem`,
                     height: `${duration * 4}rem`,
                     left: "0.5rem",
                     right: "0.5rem",
+                  }}
+                  onClick={() => {
+                    setSelectedEventForView(event);
+                    setIsEventSheetOpen(true);
                   }}
                   title={`${event.title}${event.description ? ` - ${event.description}` : ""}${event.location ? ` @ ${event.location}` : ""}`}
                 >
@@ -442,12 +460,16 @@ const CalendarView = () => {
                   return (
                     <div
                       key={event.id}
-                      className={`absolute rounded-md p-1 text-white text-xs ${event.color || "bg-blue-500"} cursor-pointer hover:opacity-90`}
+                      className={`absolute rounded-md p-1 text-white text-xs ${event.color || "bg-blue-500"} cursor-pointer hover:opacity-90 transition-all duration-200 hover:scale-105`}
                       style={{
                         top: `${startHour * 4}rem`,
                         height: `${duration * 4}rem`,
                         left: "0.25rem",
                         right: "0.25rem",
+                      }}
+                      onClick={() => {
+                        setSelectedEventForView(event);
+                        setIsEventSheetOpen(true);
                       }}
                       title={`${event.title}${event.description ? ` - ${event.description}` : ""}${event.location ? ` @ ${event.location}` : ""}`}
                     >
@@ -543,7 +565,11 @@ const CalendarView = () => {
                   {dayEvents.slice(0, 2).map((event) => (
                     <div
                       key={event.id}
-                      className={`text-xs rounded px-1 py-0.5 mb-1 truncate text-white ${event.color || "bg-blue-500"}`}
+                      className={`text-xs rounded px-1 py-0.5 mb-1 truncate text-white ${event.color || "bg-blue-500"} cursor-pointer hover:opacity-90 transition-all duration-200`}
+                      onClick={() => {
+                        setSelectedEventForView(event);
+                        setIsEventSheetOpen(true);
+                      }}
                     >
                       {event.title}
                     </div>
@@ -811,6 +837,96 @@ const CalendarView = () => {
           </TabsContent>
         </Tabs>
       </CardContent>
+
+      {/* Event Details Sheet */}
+      <Sheet open={isEventSheetOpen} onOpenChange={setIsEventSheetOpen}>
+        <SheetContent className="w-[400px] sm:w-[540px]">
+          {selectedEventForView && (
+            <>
+              <SheetHeader>
+                <SheetTitle className="text-xl font-semibold text-foreground">
+                  {selectedEventForView.title}
+                </SheetTitle>
+              </SheetHeader>
+              <div className="mt-6 space-y-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CalendarIcon className="h-4 w-4" />
+                  <span>
+                    {format(
+                      parseISO(selectedEventForView.start_time),
+                      "EEEE, MMMM d, yyyy",
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Clock className="h-4 w-4" />
+                  <span>
+                    {format(
+                      parseISO(selectedEventForView.start_time),
+                      "h:mm a",
+                    )}{" "}
+                    -{" "}
+                    {format(parseISO(selectedEventForView.end_time), "h:mm a")}
+                  </span>
+                </div>
+                {selectedEventForView.location && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>📍</span>
+                    <span>{selectedEventForView.location}</span>
+                  </div>
+                )}
+                {selectedEventForView.link && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span>🔗</span>
+                    <a
+                      href={selectedEventForView.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      {selectedEventForView.link}
+                    </a>
+                  </div>
+                )}
+                {selectedEventForView.description && (
+                  <div className="mt-6">
+                    <h4 className="font-medium text-foreground mb-2">
+                      Description
+                    </h4>
+                    <div className="bg-muted/30 rounded-lg p-4 text-sm text-foreground whitespace-pre-wrap">
+                      {selectedEventForView.description}
+                    </div>
+                  </div>
+                )}
+                {selectedEventForView.linked_note && (
+                  <div className="mt-4">
+                    <div className="flex items-center gap-2 text-sm text-primary">
+                      <FileText className="h-4 w-4" />
+                      <span>Linked to note</span>
+                    </div>
+                  </div>
+                )}
+                {selectedEventForView.linked_task && (
+                  <div className="mt-2">
+                    <div className="flex items-center gap-2 text-sm text-primary">
+                      <CheckSquare className="h-4 w-4" />
+                      <span>Linked to task</span>
+                    </div>
+                  </div>
+                )}
+                {selectedEventForView.encrypted && (
+                  <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                    <div className="flex items-center gap-2 text-sm text-primary">
+                      <Shield className="h-4 w-4" />
+                      <span>This event is encrypted</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </Card>
   );
 };

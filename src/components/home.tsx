@@ -15,7 +15,14 @@ import {
   LogOut,
   Shield,
   ShieldCheck,
+  ChevronDown,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEncryption } from "@/contexts/EncryptionContext";
 import CalendarView from "./calendar/CalendarView";
@@ -235,13 +242,31 @@ export default function Home() {
             </div>
 
             <div className="flex items-center gap-4">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-10 w-10 border-border hover:bg-accent/50"
-              >
-                <PlusIcon className="h-4 w-4" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10 border-border hover:bg-accent/50"
+                  >
+                    <PlusIcon className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => setActiveView("tasks")}>
+                    <CheckSquareIcon className="mr-2 h-4 w-4" />
+                    Create Task
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveView("notes")}>
+                    <FileTextIcon className="mr-2 h-4 w-4" />
+                    Create Note
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveView("calendar")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    Create Event
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 variant="outline"
                 size="icon"
@@ -261,9 +286,11 @@ export default function Home() {
                   </AvatarFallback>
                 </Avatar>
                 <div className="text-sm">
-                  <div className="font-medium text-foreground">Anonymous</div>
+                  <div className="font-medium text-foreground">
+                    {user?.email?.split("@")[0] || "User"}
+                  </div>
                   <div className="text-xs text-muted-foreground">
-                    Secure Session
+                    {user?.email || "Secure Session"}
                   </div>
                 </div>
               </div>

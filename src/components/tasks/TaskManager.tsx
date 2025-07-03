@@ -458,7 +458,7 @@ const TaskManager = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-8 w-8 p-0"
+                                className="h-8 w-8 p-0 hover:bg-accent/50"
                                 onClick={() => handleEditTask(task)}
                               >
                                 <Edit className="h-4 w-4" />
