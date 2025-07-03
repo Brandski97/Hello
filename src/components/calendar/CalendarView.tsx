@@ -40,14 +40,25 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEncryption } from "@/contexts/EncryptionContext";
 
 interface Event {
   id: string;
   title: string;
   description?: string;
-  start: string; // ISO date string
-  end: string; // ISO date string
+  start_time: string; // ISO date string
+  end_time: string; // ISO date string
+  location?: string;
+  link?: string;
   color?: string;
+  user_id: string;
+  linked_note?: string;
+  linked_task?: string;
+  encrypted?: boolean;
+  encryption_iv?: string;
+  encryption_salt?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface Task {
@@ -64,48 +75,80 @@ interface Task {
 
 const CalendarView = () => {
   const { user } = useAuth();
+  const { encryptContent, decryptContent, hasValidPassphrase } =
+    useEncryption();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<"day" | "week" | "month">("week");
-  const [events, setEvents] = useState<Event[]>([
-    {
-      id: "1",
-      title: "Team Meeting",
-      description: "Weekly sync with the product team",
-      start: new Date(new Date().setHours(10, 0, 0, 0)).toISOString(),
-      end: new Date(new Date().setHours(11, 0, 0, 0)).toISOString(),
-      color: "bg-blue-500",
-    },
-    {
-      id: "2",
-      title: "Project Review",
-      description: "Review Q2 project milestones",
-      start: new Date(new Date().setHours(14, 0, 0, 0)).toISOString(),
-      end: new Date(new Date().setHours(15, 30, 0, 0)).toISOString(),
-      color: "bg-green-500",
-    },
-    {
-      id: "3",
-      title: "Client Call",
-      description: "Introduction call with new client",
-      start: addDays(new Date(), 1).toISOString(),
-      end: addDays(new Date(), 1).toISOString(),
-      color: "bg-purple-500",
-    },
-  ]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [notes, setNotes] = useState<{ id: string; title: string }[]>([]);
   const [newEvent, setNewEvent] = useState<Partial<Event>>({
     title: "",
     description: "",
-    start: new Date().toISOString(),
-    end: new Date().toISOString(),
+    start_time: new Date().toISOString(),
+    end_time: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour later
+    location: "",
+    link: "",
+    linked_note: "",
+    linked_task: "",
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
+      fetchEvents();
       fetchTasks();
+      fetchNotes();
     }
   }, [user]);
+
+  const fetchEvents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("events")
+        .select("*")
+        .eq("user_id", user?.id)
+        .order("start_time", { ascending: true });
+
+      if (error) throw error;
+
+      // Decrypt events if encryption is enabled
+      const decryptedEvents = await Promise.all(
+        (data || []).map(async (event) => {
+          if (
+            event.encrypted &&
+            hasValidPassphrase &&
+            event.encryption_iv &&
+            event.encryption_salt
+          ) {
+            try {
+              const decryptedDescription = await decryptContent(
+                event.description,
+                event.encryption_iv,
+                event.encryption_salt,
+              );
+              return {
+                ...event,
+                description: decryptedDescription || "[Decryption failed]",
+              };
+            } catch (error) {
+              console.error("Failed to decrypt event:", error);
+              return {
+                ...event,
+                description: "[Encrypted - Cannot decrypt]",
+              };
+            }
+          }
+          return event;
+        }),
+      );
+
+      setEvents(decryptedEvents);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+    }
+  };
 
   const fetchTasks = async () => {
     try {
@@ -119,6 +162,23 @@ const CalendarView = () => {
       setTasks(data || []);
     } catch (error) {
       console.error("Error fetching tasks:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchNotes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("notes")
+        .select("id, title")
+        .eq("user_id", user?.id)
+        .order("title", { ascending: true });
+
+      if (error) throw error;
+      setNotes(data || []);
+    } catch (error) {
+      console.error("Error fetching notes:", error);
     }
   };
 
@@ -150,27 +210,73 @@ const CalendarView = () => {
     setCurrentDate(new Date());
   };
 
-  const handleCreateEvent = () => {
-    const newEventWithId = {
-      ...newEvent,
-      id: Math.random().toString(36).substring(2, 9),
-      color: `bg-${["blue", "green", "purple", "red", "yellow"][Math.floor(Math.random() * 5)]}-500`,
-    } as Event;
+  const handleCreateEvent = async () => {
+    if (!user || !newEvent.title?.trim()) return;
 
-    setEvents([...events, newEventWithId]);
-    setNewEvent({
-      title: "",
-      description: "",
-      start: new Date().toISOString(),
-      end: new Date().toISOString(),
-    });
-    setIsDialogOpen(false);
+    try {
+      let eventData: any = {
+        title: newEvent.title,
+        description: newEvent.description || "",
+        start_time: newEvent.start_time,
+        end_time: newEvent.end_time,
+        location: newEvent.location || null,
+        link: newEvent.link || null,
+        color: `bg-${["blue", "green", "purple", "red", "yellow", "indigo", "pink"][Math.floor(Math.random() * 7)]}-500`,
+        user_id: user.id,
+        linked_note: newEvent.linked_note || null,
+        linked_task: newEvent.linked_task || null,
+        encrypted: false,
+      };
+
+      // Encrypt description if encryption is enabled and description exists
+      if (hasValidPassphrase && newEvent.description) {
+        const encryptionResult = await encryptContent(newEvent.description);
+        if (encryptionResult) {
+          eventData = {
+            ...eventData,
+            description: encryptionResult.encryptedData,
+            encrypted: true,
+            encryption_iv: encryptionResult.iv,
+            encryption_salt: encryptionResult.salt,
+          };
+        }
+      }
+
+      const { data, error } = await supabase
+        .from("events")
+        .insert(eventData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // If encrypted, show decrypted version in UI
+      const displayEvent = {
+        ...data,
+        description: newEvent.description || "", // Show original description in UI
+      };
+
+      setEvents([...events, displayEvent]);
+      setNewEvent({
+        title: "",
+        description: "",
+        start_time: new Date().toISOString(),
+        end_time: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        location: "",
+        link: "",
+        linked_note: "",
+        linked_task: "",
+      });
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error("Error creating event:", error);
+    }
   };
 
   const renderDayView = () => {
     const hours = Array.from({ length: 24 }, (_, i) => i);
     const dayEvents = events.filter((event) => {
-      const eventDate = parseISO(event.start);
+      const eventDate = parseISO(event.start_time);
       return isSameDay(eventDate, currentDate);
     });
     const dayTasks = tasks.filter((task) => {
@@ -206,8 +312,8 @@ const CalendarView = () => {
               <div key={hour} className="h-16 border-t border-gray-200"></div>
             ))}
             {dayEvents.map((event) => {
-              const startTime = parseISO(event.start);
-              const endTime = parseISO(event.end);
+              const startTime = parseISO(event.start_time);
+              const endTime = parseISO(event.end_time);
               const startHour =
                 startTime.getHours() + startTime.getMinutes() / 60;
               const endHour = endTime.getHours() + endTime.getMinutes() / 60;
@@ -216,18 +322,24 @@ const CalendarView = () => {
               return (
                 <div
                   key={event.id}
-                  className={`absolute rounded-md p-2 text-white text-xs ${event.color || "bg-blue-500"}`}
+                  className={`absolute rounded-md p-2 text-white text-xs ${event.color || "bg-blue-500"} cursor-pointer hover:opacity-90`}
                   style={{
                     top: `${startHour * 4}rem`,
                     height: `${duration * 4}rem`,
                     left: "0.5rem",
                     right: "0.5rem",
                   }}
+                  title={`${event.title}${event.description ? ` - ${event.description}` : ""}${event.location ? ` @ ${event.location}` : ""}`}
                 >
-                  <div className="font-medium">{event.title}</div>
-                  <div>
+                  <div className="font-medium truncate">{event.title}</div>
+                  <div className="truncate">
                     {format(startTime, "h:mm a")} - {format(endTime, "h:mm a")}
                   </div>
+                  {event.location && (
+                    <div className="text-xs opacity-90 truncate">
+                      📍 {event.location}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -315,12 +427,12 @@ const CalendarView = () => {
               ))}
               {events
                 .filter((event) => {
-                  const eventDate = parseISO(event.start);
+                  const eventDate = parseISO(event.start_time);
                   return isSameDay(eventDate, day);
                 })
                 .map((event) => {
-                  const startTime = parseISO(event.start);
-                  const endTime = parseISO(event.end);
+                  const startTime = parseISO(event.start_time);
+                  const endTime = parseISO(event.end_time);
                   const startHour =
                     startTime.getHours() + startTime.getMinutes() / 60;
                   const endHour =
@@ -330,13 +442,14 @@ const CalendarView = () => {
                   return (
                     <div
                       key={event.id}
-                      className={`absolute rounded-md p-1 text-white text-xs ${event.color || "bg-blue-500"}`}
+                      className={`absolute rounded-md p-1 text-white text-xs ${event.color || "bg-blue-500"} cursor-pointer hover:opacity-90`}
                       style={{
                         top: `${startHour * 4}rem`,
                         height: `${duration * 4}rem`,
                         left: "0.25rem",
                         right: "0.25rem",
                       }}
+                      title={`${event.title}${event.description ? ` - ${event.description}` : ""}${event.location ? ` @ ${event.location}` : ""}`}
                     >
                       <div className="font-medium truncate">{event.title}</div>
                       <div className="truncate">
@@ -407,7 +520,7 @@ const CalendarView = () => {
           ))}
           {days.map((day, i) => {
             const dayEvents = events.filter((event) => {
-              const eventDate = parseISO(event.start);
+              const eventDate = parseISO(event.start_time);
               return isSameDay(eventDate, day);
             });
             const dayTasks = tasks.filter((task) => {
@@ -508,11 +621,12 @@ const CalendarView = () => {
                 <DialogHeader>
                   <DialogTitle>Create New Event</DialogTitle>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
+                <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto">
                   <div className="grid gap-2">
-                    <Label htmlFor="title">Title</Label>
+                    <Label htmlFor="title">Title *</Label>
                     <Input
                       id="title"
+                      placeholder="Event title"
                       value={newEvent.title}
                       onChange={(e) =>
                         setNewEvent({ ...newEvent, title: e.target.value })
@@ -523,6 +637,7 @@ const CalendarView = () => {
                     <Label htmlFor="description">Description</Label>
                     <Textarea
                       id="description"
+                      placeholder="Event description"
                       value={newEvent.description}
                       onChange={(e) =>
                         setNewEvent({
@@ -534,74 +649,124 @@ const CalendarView = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="start-date">Start</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="w-full justify-start text-left font-normal"
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {newEvent.start ? (
-                              format(parseISO(newEvent.start), "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={
-                              newEvent.start
-                                ? parseISO(newEvent.start)
-                                : undefined
-                            }
-                            onSelect={(date) =>
-                              date &&
-                              setNewEvent({
-                                ...newEvent,
-                                start: date.toISOString(),
-                              })
-                            }
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
+                      <Label htmlFor="start-date">Start Date & Time *</Label>
+                      <Input
+                        id="start-date"
+                        type="datetime-local"
+                        value={
+                          newEvent.start_time
+                            ? format(
+                                parseISO(newEvent.start_time),
+                                "yyyy-MM-dd'T'HH:mm",
+                              )
+                            : ""
+                        }
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            setNewEvent({
+                              ...newEvent,
+                              start_time: new Date(
+                                e.target.value,
+                              ).toISOString(),
+                            });
+                          }
+                        }}
+                      />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="end-date">End</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="w-full justify-start text-left font-normal"
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {newEvent.end ? (
-                              format(parseISO(newEvent.end), "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={
-                              newEvent.end ? parseISO(newEvent.end) : undefined
-                            }
-                            onSelect={(date) =>
-                              date &&
-                              setNewEvent({
-                                ...newEvent,
-                                end: date.toISOString(),
-                              })
-                            }
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
+                      <Label htmlFor="end-date">End Date & Time *</Label>
+                      <Input
+                        id="end-date"
+                        type="datetime-local"
+                        value={
+                          newEvent.end_time
+                            ? format(
+                                parseISO(newEvent.end_time),
+                                "yyyy-MM-dd'T'HH:mm",
+                              )
+                            : ""
+                        }
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            setNewEvent({
+                              ...newEvent,
+                              end_time: new Date(e.target.value).toISOString(),
+                            });
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="location">Location</Label>
+                      <Input
+                        id="location"
+                        placeholder="Event location"
+                        value={newEvent.location}
+                        onChange={(e) =>
+                          setNewEvent({ ...newEvent, location: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="link">Link</Label>
+                      <Input
+                        id="link"
+                        placeholder="https://..."
+                        value={newEvent.link}
+                        onChange={(e) =>
+                          setNewEvent({ ...newEvent, link: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="linked-note">
+                        Link to Note (Optional)
+                      </Label>
+                      <select
+                        id="linked-note"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={newEvent.linked_note || ""}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            linked_note: e.target.value || null,
+                          })
+                        }
+                      >
+                        <option value="">No note</option>
+                        {notes.map((note) => (
+                          <option key={note.id} value={note.id}>
+                            {note.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="linked-task">
+                        Link to Task (Optional)
+                      </Label>
+                      <select
+                        id="linked-task"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={newEvent.linked_task || ""}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            linked_task: e.target.value || null,
+                          })
+                        }
+                      >
+                        <option value="">No task</option>
+                        {tasks.map((task) => (
+                          <option key={task.id} value={task.id}>
+                            {task.title}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -635,19 +800,6 @@ const CalendarView = () => {
         </Tabs>
       </CardContent>
     </Card>
-  );
-};
-
-// This is a simplified version of the Calendar component for the event creation dialog
-// In a real app, you would import the actual Calendar component
-const Calendar = ({ mode, selected, onSelect, initialFocus }: any) => {
-  return (
-    <div className="p-3">
-      <div className="text-center mb-2">Calendar Placeholder</div>
-      <Button onClick={() => onSelect(new Date())} className="w-full">
-        Select Today
-      </Button>
-    </div>
   );
 };
 

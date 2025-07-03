@@ -49,6 +49,7 @@ type Task = {
   description: string;
   priority: "low" | "medium" | "high";
   due_date: string | null;
+  due_time: string | null;
   completed: boolean;
   linked_event?: string;
   linked_note?: string;
@@ -73,6 +74,7 @@ const TaskManager = () => {
     description: "",
     priority: "medium",
     due_date: null,
+    due_time: null,
     completed: false,
     linked_note: "",
   });
@@ -159,11 +161,22 @@ const TaskManager = () => {
     if (!user || !newTask.title?.trim()) return;
 
     try {
+      // Combine date and time if both are provided
+      let combinedDueDate = null;
+      if (newTask.due_date) {
+        const date = new Date(newTask.due_date);
+        if (newTask.due_time) {
+          const [hours, minutes] = newTask.due_time.split(":");
+          date.setHours(parseInt(hours), parseInt(minutes));
+        }
+        combinedDueDate = date.toISOString();
+      }
+
       let taskData: any = {
         title: newTask.title,
         description: newTask.description || "",
         priority: newTask.priority || "medium",
-        due_date: newTask.due_date,
+        due_date: combinedDueDate,
         completed: false,
         linked_note: newTask.linked_note,
         user_id: user.id,
@@ -204,6 +217,7 @@ const TaskManager = () => {
         description: "",
         priority: "medium",
         due_date: null,
+        due_time: null,
         completed: false,
         linked_note: "",
       });
@@ -217,11 +231,22 @@ const TaskManager = () => {
     if (!currentTask) return;
 
     try {
+      // Combine date and time if both are provided
+      let combinedDueDate = null;
+      if (currentTask.due_date) {
+        const date = new Date(currentTask.due_date);
+        if (currentTask.due_time) {
+          const [hours, minutes] = currentTask.due_time.split(":");
+          date.setHours(parseInt(hours), parseInt(minutes));
+        }
+        combinedDueDate = date.toISOString();
+      }
+
       let updateData: any = {
         title: currentTask.title,
         description: currentTask.description,
         priority: currentTask.priority,
-        due_date: currentTask.due_date,
+        due_date: combinedDueDate,
         completed: currentTask.completed,
         linked_event: currentTask.linked_event,
         encrypted: false,
@@ -422,6 +447,12 @@ const TaskManager = () => {
                             <div className="flex items-center text-xs text-gray-500">
                               <Calendar className="h-3 w-3 mr-1" />
                               {format(new Date(task.due_date), "MMM dd, yyyy")}
+                              {format(new Date(task.due_date), "HH:mm") !==
+                                "00:00" && (
+                                <span className="ml-1">
+                                  at {format(new Date(task.due_date), "h:mm a")}
+                                </span>
+                              )}
                             </div>
                           )}
 
@@ -479,7 +510,7 @@ const TaskManager = () => {
                 }
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4">
               <div className="grid gap-2">
                 <label htmlFor="priority" className="text-sm font-medium">
                   Priority
@@ -503,43 +534,68 @@ const TaskManager = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-2">
-                <label htmlFor="dueDate" className="text-sm font-medium">
-                  Due Date
-                </label>
-                <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="justify-start text-left font-normal"
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {newTask.due_date ? (
-                        format(new Date(newTask.due_date), "PPP")
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={
-                        newTask.due_date
-                          ? new Date(newTask.due_date)
-                          : undefined
-                      }
-                      onSelect={(date) => {
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <label htmlFor="dueDate" className="text-sm font-medium">
+                    Due Date
+                  </label>
+                  <Popover
+                    open={datePickerOpen}
+                    onOpenChange={setDatePickerOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="justify-start text-left font-normal"
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {newTask.due_date ? (
+                          format(new Date(newTask.due_date), "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={
+                          newTask.due_date
+                            ? new Date(newTask.due_date)
+                            : undefined
+                        }
+                        onSelect={(date) => {
+                          setNewTask({
+                            ...newTask,
+                            due_date: date ? date.toISOString() : null,
+                          });
+                          setDatePickerOpen(false);
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="dueTime" className="text-sm font-medium">
+                    Due Time (Optional)
+                  </label>
+                  <div className="relative">
+                    <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="dueTime"
+                      type="time"
+                      className="pl-10"
+                      value={newTask.due_time || ""}
+                      onChange={(e) =>
                         setNewTask({
                           ...newTask,
-                          due_date: date ? date.toISOString() : null,
-                        });
-                        setDatePickerOpen(false);
-                      }}
-                      initialFocus
+                          due_time: e.target.value || null,
+                        })
+                      }
                     />
-                  </PopoverContent>
-                </Popover>
+                  </div>
+                </div>
               </div>
             </div>
             <div className="grid gap-2">
@@ -624,7 +680,7 @@ const TaskManager = () => {
                   }
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4">
                 <div className="grid gap-2">
                   <label
                     htmlFor="edit-priority"
@@ -651,42 +707,99 @@ const TaskManager = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid gap-2">
-                  <label htmlFor="edit-dueDate" className="text-sm font-medium">
-                    Due Date
-                  </label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="justify-start text-left font-normal"
-                      >
-                        <Calendar className="mr-2 h-4 w-4" />
-                        {currentTask.due_date ? (
-                          format(new Date(currentTask.due_date), "PPP")
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarComponent
-                        mode="single"
-                        selected={
-                          currentTask.due_date
-                            ? new Date(currentTask.due_date)
-                            : undefined
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <label
+                      htmlFor="edit-dueDate"
+                      className="text-sm font-medium"
+                    >
+                      Due Date
+                    </label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="justify-start text-left font-normal"
+                        >
+                          <Calendar className="mr-2 h-4 w-4" />
+                          {currentTask.due_date ? (
+                            format(new Date(currentTask.due_date), "PPP")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={
+                            currentTask.due_date
+                              ? new Date(currentTask.due_date)
+                              : undefined
+                          }
+                          onSelect={(date) => {
+                            const existingTime = currentTask.due_date
+                              ? format(new Date(currentTask.due_date), "HH:mm")
+                              : null;
+
+                            if (
+                              date &&
+                              existingTime &&
+                              existingTime !== "00:00"
+                            ) {
+                              const [hours, minutes] = existingTime.split(":");
+                              date.setHours(parseInt(hours), parseInt(minutes));
+                            }
+
+                            setCurrentTask({
+                              ...currentTask,
+                              due_date: date ? date.toISOString() : null,
+                            });
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="grid gap-2">
+                    <label
+                      htmlFor="edit-dueTime"
+                      className="text-sm font-medium"
+                    >
+                      Due Time (Optional)
+                    </label>
+                    <div className="relative">
+                      <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        id="edit-dueTime"
+                        type="time"
+                        className="pl-10"
+                        value={
+                          currentTask.due_date &&
+                          format(new Date(currentTask.due_date), "HH:mm") !==
+                            "00:00"
+                            ? format(new Date(currentTask.due_date), "HH:mm")
+                            : ""
                         }
-                        onSelect={(date) =>
-                          setCurrentTask({
-                            ...currentTask,
-                            due_date: date ? date.toISOString() : null,
-                          })
-                        }
-                        initialFocus
+                        onChange={(e) => {
+                          if (currentTask.due_date) {
+                            const date = new Date(currentTask.due_date);
+                            if (e.target.value) {
+                              const [hours, minutes] =
+                                e.target.value.split(":");
+                              date.setHours(parseInt(hours), parseInt(minutes));
+                            } else {
+                              date.setHours(0, 0, 0, 0);
+                            }
+                            setCurrentTask({
+                              ...currentTask,
+                              due_date: date.toISOString(),
+                            });
+                          }
+                        }}
                       />
-                    </PopoverContent>
-                  </Popover>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="grid gap-2">

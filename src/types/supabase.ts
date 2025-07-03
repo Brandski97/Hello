@@ -9,6 +9,78 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      events: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          description: string | null
+          encrypted: boolean | null
+          encryption_iv: string | null
+          encryption_salt: string | null
+          end_time: string
+          id: string
+          link: string | null
+          linked_note: string | null
+          linked_task: string | null
+          location: string | null
+          start_time: string
+          title: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          encrypted?: boolean | null
+          encryption_iv?: string | null
+          encryption_salt?: string | null
+          end_time: string
+          id?: string
+          link?: string | null
+          linked_note?: string | null
+          linked_task?: string | null
+          location?: string | null
+          start_time: string
+          title: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          encrypted?: boolean | null
+          encryption_iv?: string | null
+          encryption_salt?: string | null
+          end_time?: string
+          id?: string
+          link?: string | null
+          linked_note?: string | null
+          linked_task?: string | null
+          location?: string | null
+          start_time?: string
+          title?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_linked_note_fkey"
+            columns: ["linked_note"]
+            isOneToOne: false
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_linked_task_fkey"
+            columns: ["linked_task"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notes: {
         Row: {
           category: string | null
@@ -60,6 +132,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           due_date: string | null
+          due_time: string | null
           encrypted: boolean | null
           encryption_iv: string | null
           encryption_salt: string | null
@@ -76,6 +149,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           due_date?: string | null
+          due_time?: string | null
           encrypted?: boolean | null
           encryption_iv?: string | null
           encryption_salt?: string | null
@@ -92,6 +166,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           due_date?: string | null
+          due_time?: string | null
           encrypted?: boolean | null
           encryption_iv?: string | null
           encryption_salt?: string | null
