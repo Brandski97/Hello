@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,12 +16,27 @@ import {
   Shield,
   ShieldCheck,
   ChevronDown,
+  Sun,
+  Moon,
+  Monitor,
+  User,
+  Lock,
+  Palette,
+  Database,
+  Download,
+  Upload,
+  HelpCircle,
 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEncryption } from "@/contexts/EncryptionContext";
@@ -135,8 +150,45 @@ const AIAssistant = () => {
 
 export default function Home() {
   const [activeView, setActiveView] = useState("calendar");
+  const [theme, setTheme] = useState<"light" | "dark" | "system">("dark");
   const { user, signOut } = useAuth();
   const { hasValidPassphrase, isEncryptionEnabled } = useEncryption();
+
+  // Initialize theme from localStorage or default to dark
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme") as
+      | "light"
+      | "dark"
+      | "system"
+      | null;
+    if (savedTheme) {
+      setTheme(savedTheme);
+      applyTheme(savedTheme);
+    } else {
+      // Default to dark theme
+      setTheme("dark");
+      applyTheme("dark");
+    }
+  }, []);
+
+  const applyTheme = (newTheme: "light" | "dark" | "system") => {
+    const root = document.documentElement;
+
+    if (newTheme === "system") {
+      const systemPrefersDark = window.matchMedia(
+        "(prefers-color-scheme: dark)",
+      ).matches;
+      root.classList.toggle("dark", systemPrefersDark);
+    } else {
+      root.classList.toggle("dark", newTheme === "dark");
+    }
+  };
+
+  const handleThemeChange = (newTheme: "light" | "dark" | "system") => {
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
+    applyTheme(newTheme);
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -209,13 +261,106 @@ export default function Home() {
               )}
             </div>
           </div>
-          <Button
-            variant="outline"
-            className="w-full justify-start h-11 border-border hover:bg-accent/50"
-          >
-            <SettingsIcon className="mr-3 h-5 w-5" />
-            Settings
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full justify-start h-11 border-border hover:bg-accent/50"
+              >
+                <SettingsIcon className="mr-3 h-5 w-5" />
+                Settings
+                <ChevronDown className="ml-auto h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="start" className="w-64">
+              <DropdownMenuLabel className="font-semibold text-foreground">
+                Settings & Preferences
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+
+              {/* Theme Settings */}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="flex items-center">
+                  <Palette className="mr-2 h-4 w-4" />
+                  <span>Theme</span>
+                  <div className="ml-auto flex items-center">
+                    {theme === "light" && <Sun className="h-3 w-3" />}
+                    {theme === "dark" && <Moon className="h-3 w-3" />}
+                    {theme === "system" && <Monitor className="h-3 w-3" />}
+                  </div>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem
+                    onClick={() => handleThemeChange("light")}
+                    className={theme === "light" ? "bg-accent" : ""}
+                  >
+                    <Sun className="mr-2 h-4 w-4" />
+                    Light Mode
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleThemeChange("dark")}
+                    className={theme === "dark" ? "bg-accent" : ""}
+                  >
+                    <Moon className="mr-2 h-4 w-4" />
+                    Dark Mode
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleThemeChange("system")}
+                    className={theme === "system" ? "bg-accent" : ""}
+                  >
+                    <Monitor className="mr-2 h-4 w-4" />
+                    System Default
+                  </DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+
+              <DropdownMenuSeparator />
+
+              {/* Account Settings */}
+              <DropdownMenuItem>
+                <User className="mr-2 h-4 w-4" />
+                Account Settings
+              </DropdownMenuItem>
+
+              {/* Privacy & Security */}
+              <DropdownMenuItem>
+                <Lock className="mr-2 h-4 w-4" />
+                Privacy & Security
+              </DropdownMenuItem>
+
+              {/* Encryption Settings */}
+              <DropdownMenuItem>
+                <Shield className="mr-2 h-4 w-4" />
+                Encryption Settings
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              {/* Data Management */}
+              <DropdownMenuItem>
+                <Database className="mr-2 h-4 w-4" />
+                Data Management
+              </DropdownMenuItem>
+
+              <DropdownMenuItem>
+                <Download className="mr-2 h-4 w-4" />
+                Export Data
+              </DropdownMenuItem>
+
+              <DropdownMenuItem>
+                <Upload className="mr-2 h-4 w-4" />
+                Import Data
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              {/* Help & Support */}
+              <DropdownMenuItem>
+                <HelpCircle className="mr-2 h-4 w-4" />
+                Help & Support
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             variant="outline"
             className="w-full justify-start h-11 text-destructive hover:text-destructive hover:bg-destructive/10 border-border"
