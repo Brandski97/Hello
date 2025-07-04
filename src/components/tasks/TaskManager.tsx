@@ -43,6 +43,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEncryption } from "@/contexts/EncryptionContext";
+import { useNotifications } from "@/contexts/NotificationsContext";
 
 type Task = {
   id: string;
@@ -66,6 +67,7 @@ const TaskManager = () => {
   const { user } = useAuth();
   const { encryptContent, decryptContent, hasValidPassphrase } =
     useEncryption();
+  const { addNotification } = useNotifications();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isNewTaskDialogOpen, setIsNewTaskDialogOpen] = useState(false);
   const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false);
@@ -213,6 +215,15 @@ const TaskManager = () => {
       };
 
       setTasks([displayTask, ...tasks]);
+
+      // Add notification
+      addNotification({
+        type: "task",
+        action: "created",
+        title: "Task Created",
+        description: `"${newTask.title}" has been added to your tasks`,
+      });
+
       setNewTask({
         title: "",
         description: "",
@@ -287,6 +298,15 @@ const TaskManager = () => {
           : task,
       );
       setTasks(updatedTasks);
+
+      // Add notification
+      addNotification({
+        type: "task",
+        action: "updated",
+        title: "Task Updated",
+        description: `"${currentTask.title}" has been updated`,
+      });
+
       setIsEditTaskDialogOpen(false);
       setCurrentTask(null);
     } catch (error) {
@@ -300,7 +320,18 @@ const TaskManager = () => {
 
       if (error) throw error;
 
+      const deletedTask = tasks.find((task) => task.id === id);
       setTasks(tasks.filter((task) => task.id !== id));
+
+      // Add notification
+      if (deletedTask) {
+        addNotification({
+          type: "task",
+          action: "deleted",
+          title: "Task Deleted",
+          description: `"${deletedTask.title}" has been deleted`,
+        });
+      }
     } catch (error) {
       console.error("Error deleting task:", error);
     }
@@ -318,11 +349,21 @@ const TaskManager = () => {
 
       if (error) throw error;
 
-      setTasks(
-        tasks.map((task) =>
-          task.id === id ? { ...task, completed: !task.completed } : task,
-        ),
+      const updatedTasks = tasks.map((task) =>
+        task.id === id ? { ...task, completed: !task.completed } : task,
       );
+      setTasks(updatedTasks);
+
+      // Add notification
+      const updatedTask = updatedTasks.find((task) => task.id === id);
+      if (updatedTask) {
+        addNotification({
+          type: "task",
+          action: updatedTask.completed ? "completed" : "updated",
+          title: updatedTask.completed ? "Task Completed" : "Task Updated",
+          description: `"${updatedTask.title}" has been ${updatedTask.completed ? "completed" : "marked as incomplete"}`,
+        });
+      }
     } catch (error) {
       console.error("Error toggling task completion:", error);
     }

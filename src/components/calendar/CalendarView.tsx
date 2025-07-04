@@ -52,6 +52,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEncryption } from "@/contexts/EncryptionContext";
+import { useNotifications } from "@/contexts/NotificationsContext";
 
 interface Event {
   id: string;
@@ -88,6 +89,7 @@ const CalendarView = () => {
   const { user } = useAuth();
   const { encryptContent, decryptContent, hasValidPassphrase } =
     useEncryption();
+  const { addNotification } = useNotifications();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<"day" | "week" | "month">("week");
   const [events, setEvents] = useState<Event[]>([]);
@@ -271,6 +273,15 @@ const CalendarView = () => {
       };
 
       setEvents([...events, displayEvent]);
+
+      // Add notification
+      addNotification({
+        type: "event",
+        action: "created",
+        title: "Event Created",
+        description: `"${newEvent.title}" has been added to your calendar`,
+      });
+
       setNewEvent({
         title: "",
         description: "",
@@ -309,7 +320,7 @@ const CalendarView = () => {
             {hours.map((hour) => (
               <div
                 key={hour}
-                className="h-16 border-t border-gray-200 text-xs text-gray-500 text-right pr-2"
+                className="h-16 border-t border-border text-xs text-muted-foreground text-right pr-2"
               >
                 {hour === 0
                   ? "12 AM"
@@ -323,7 +334,7 @@ const CalendarView = () => {
           </div>
           <div className="flex-1 relative">
             {hours.map((hour) => (
-              <div key={hour} className="h-16 border-t border-gray-200"></div>
+              <div key={hour} className="h-16 border-t border-border"></div>
             ))}
             {dayEvents.map((event) => {
               const startTime = parseISO(event.start_time);
@@ -403,10 +414,10 @@ const CalendarView = () => {
 
     return (
       <div className="flex flex-col h-[600px] overflow-auto">
-        <div className="flex border-b border-gray-200 sticky top-0 bg-white z-10">
+        <div className="flex border-b border-border sticky top-0 bg-card z-10">
           <div className="w-16 flex-shrink-0"></div>
           {days.map((day, i) => (
-            <div key={i} className="flex-1 text-center py-2">
+            <div key={i} className="flex-1 text-center py-2 text-foreground">
               <div className="font-medium">{format(day, "EEE")}</div>
               <div
                 className={cn(
@@ -426,7 +437,7 @@ const CalendarView = () => {
             {hours.map((hour) => (
               <div
                 key={hour}
-                className="h-16 border-t border-gray-200 text-xs text-gray-500 text-right pr-2"
+                className="h-16 border-t border-border text-xs text-muted-foreground text-right pr-2"
               >
                 {hour === 0
                   ? "12 AM"
@@ -441,7 +452,7 @@ const CalendarView = () => {
           {days.map((day, dayIndex) => (
             <div key={dayIndex} className="flex-1 relative">
               {hours.map((hour) => (
-                <div key={hour} className="h-16 border-t border-gray-200"></div>
+                <div key={hour} className="h-16 border-t border-border"></div>
               ))}
               {events
                 .filter((event) => {
@@ -531,11 +542,11 @@ const CalendarView = () => {
 
     return (
       <div className="h-[600px] overflow-y-auto">
-        <div className="grid grid-cols-7 gap-px bg-gray-200">
+        <div className="grid grid-cols-7 gap-px bg-border">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
             <div
               key={day}
-              className="bg-white text-center py-2 text-sm font-medium"
+              className="bg-card text-center py-2 text-sm font-medium text-foreground"
             >
               {day}
             </div>
@@ -555,9 +566,11 @@ const CalendarView = () => {
               <div
                 key={i}
                 className={cn(
-                  "bg-white min-h-28 p-1 border-t",
-                  !isSameMonth(day, currentDate) && "text-gray-400 bg-gray-50",
-                  isSameDay(day, new Date()) && "bg-blue-50",
+                  "bg-card min-h-28 p-1 border-t border-border text-foreground",
+                  !isSameMonth(day, currentDate) &&
+                    "text-muted-foreground bg-muted/30",
+                  isSameDay(day, new Date()) &&
+                    "bg-primary/10 border-primary/20",
                 )}
               >
                 <div className="text-right text-sm">{format(day, "d")}</div>

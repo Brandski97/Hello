@@ -43,6 +43,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEncryption } from "@/contexts/EncryptionContext";
+import { useNotifications } from "@/contexts/NotificationsContext";
 
 interface Note {
   id: string;
@@ -63,6 +64,7 @@ const NotesSection = () => {
   const { user } = useAuth();
   const { encryptContent, decryptContent, hasValidPassphrase } =
     useEncryption();
+  const { addNotification } = useNotifications();
   const [notes, setNotes] = useState<Note[]>([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -196,6 +198,15 @@ const NotesSection = () => {
 
       setNotes([displayNote, ...notes]);
       setSelectedNote(displayNote);
+
+      // Add notification
+      addNotification({
+        type: "note",
+        action: "created",
+        title: "Note Created",
+        description: `"${newNote.title}" has been saved`,
+      });
+
       setNewNote({ title: "", content: "", category: "", tags: [] });
       setIsNewNoteDialogOpen(false);
     } catch (error) {
@@ -209,8 +220,19 @@ const NotesSection = () => {
 
       if (error) throw error;
 
+      const deletedNote = notes.find((note) => note.id === noteId);
       const updatedNotes = notes.filter((note) => note.id !== noteId);
       setNotes(updatedNotes);
+
+      // Add notification
+      if (deletedNote) {
+        addNotification({
+          type: "note",
+          action: "deleted",
+          title: "Note Deleted",
+          description: `"${deletedNote.title}" has been deleted`,
+        });
+      }
 
       if (selectedNote?.id === noteId) {
         setSelectedNote(updatedNotes.length > 0 ? updatedNotes[0] : null);
@@ -309,6 +331,15 @@ const NotesSection = () => {
         encryption_iv: updateData.encryption_iv,
         encryption_salt: updateData.encryption_salt,
       });
+
+      // Add notification
+      addNotification({
+        type: "note",
+        action: "updated",
+        title: "Note Updated",
+        description: `"${selectedNote.title}" has been updated`,
+      });
+
       setIsEditing(false);
     } catch (error) {
       console.error("Error updating note:", error);

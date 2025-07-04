@@ -20,12 +20,13 @@ import {
   Moon,
   Monitor,
   User,
-  Lock,
   Palette,
-  Database,
   Download,
   Upload,
   HelpCircle,
+  Mail,
+  Key,
+  Edit,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -39,10 +40,23 @@ import {
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 import { useEncryption } from "@/contexts/EncryptionContext";
+import { useNotifications } from "@/contexts/NotificationsContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import CalendarView from "./calendar/CalendarView";
 import NotesSection from "./notes/NotesSection";
 import TaskManager from "./tasks/TaskManager";
+import EncryptionSetup from "./auth/EncryptionSetup";
 
 interface AIInsightProps {
   title: string;
@@ -151,8 +165,33 @@ const AIAssistant = () => {
 export default function Home() {
   const [activeView, setActiveView] = useState("calendar");
   const [theme, setTheme] = useState<"light" | "dark" | "system">("dark");
+  const [accountDialogOpen, setAccountDialogOpen] = useState(false);
+  const [encryptionDialogOpen, setEncryptionDialogOpen] = useState(false);
+  const [encryptionSetupOpen, setEncryptionSetupOpen] = useState(false);
+  const [accountForm, setAccountForm] = useState({
+    username: "",
+    email: "",
+    password: "",
+  });
+  const [accountUpdateStatus, setAccountUpdateStatus] = useState<string | null>(
+    null,
+  );
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { user, signOut } = useAuth();
-  const { hasValidPassphrase, isEncryptionEnabled } = useEncryption();
+  const {
+    hasValidPassphrase,
+    isEncryptionEnabled,
+    setEncryptionPassphrase,
+    clearEncryptionPassphrase,
+  } = useEncryption();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    clearNotifications,
+    addNotification,
+  } = useNotifications();
 
   // Initialize theme from localStorage or default to dark
   useEffect(() => {
@@ -192,6 +231,152 @@ export default function Home() {
 
   const handleSignOut = async () => {
     await signOut();
+  };
+
+  const handleAccountSettings = () => {
+    setAccountForm({
+      username: user?.email?.split("@")[0] || "",
+      email: user?.email || "",
+      password: "",
+    });
+    setAccountDialogOpen(true);
+  };
+
+  const handleSaveAccountSettings = async () => {
+    try {
+      setAccountUpdateStatus(null);
+
+      // Update email if changed
+      if (accountForm.email !== user?.email) {
+        const { error: emailError } = await supabase.auth.updateUser({
+          email: accountForm.email,
+        });
+        if (emailError) throw emailError;
+      }
+
+      // Update password if provided
+      if (accountForm.password) {
+        const { error: passwordError } = await supabase.auth.updateUser({
+          password: accountForm.password,
+        });
+        if (passwordError) throw passwordError;
+      }
+
+      // Update user metadata for username
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: { username: accountForm.username },
+      });
+      if (metadataError) throw metadataError;
+
+      setAccountUpdateStatus("Account settings updated successfully!");
+
+      // Add notification for account update
+      addNotification({
+        type: "account",
+        action: "updated",
+        title: "Account Updated",
+        description: "Your account settings have been updated successfully",
+      });
+
+      // Clear password field after successful update
+      setAccountForm((prev) => ({ ...prev, password: "" }));
+
+      setTimeout(() => {
+        setAccountDialogOpen(false);
+        setAccountUpdateStatus(null);
+      }, 2000);
+    } catch (error: any) {
+      console.error("Error updating account:", error);
+      setAccountUpdateStatus(`Error: ${error.message}`);
+    }
+  };
+
+  const handleEncryptionSettings = () => {
+    setEncryptionDialogOpen(true);
+  };
+
+  const handleToggleEncryption = () => {
+    if (hasValidPassphrase) {
+      clearEncryptionPassphrase();
+      addNotification({
+        type: "encryption",
+        action: "disabled",
+        title: "Encryption Disabled",
+        description: "Your data will no longer be encrypted",
+      });
+      alert(
+        "Encryption has been disabled. Your data will no longer be encrypted.",
+      );
+      setEncryptionDialogOpen(false);
+    } else {
+      // Show the proper encryption setup dialog
+      setEncryptionDialogOpen(false);
+      setEncryptionSetupOpen(true);
+    }
+  };
+
+  const handleEncryptionSetupComplete = () => {
+    setEncryptionSetupOpen(false);
+    addNotification({
+      type: "encryption",
+      action: "enabled",
+      title: "Encryption Enabled",
+      description: "Your data is now encrypted client-side",
+    });
+  };
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case "note":
+        return <FileTextIcon className="h-4 w-4 text-blue-500" />;
+      case "task":
+        return <CheckSquareIcon className="h-4 w-4 text-green-500" />;
+      case "event":
+        return <CalendarIcon className="h-4 w-4 text-purple-500" />;
+      case "account":
+        return <User className="h-4 w-4 text-orange-500" />;
+      case "encryption":
+        return <Shield className="h-4 w-4 text-primary" />;
+      default:
+        return <BellIcon className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
+  const getActionText = (action: string) => {
+    switch (action) {
+      case "created":
+        return "created";
+      case "updated":
+        return "updated";
+      case "deleted":
+        return "deleted";
+      case "completed":
+        return "completed";
+      case "enabled":
+        return "enabled";
+      case "disabled":
+        return "disabled";
+      default:
+        return action;
+    }
+  };
+
+  const formatTimeAgo = (date: Date) => {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) {
+      return "Just now";
+    } else if (diffInSeconds < 3600) {
+      const minutes = Math.floor(diffInSeconds / 60);
+      return `${minutes}m ago`;
+    } else if (diffInSeconds < 86400) {
+      const hours = Math.floor(diffInSeconds / 3600);
+      return `${hours}h ago`;
+    } else {
+      const days = Math.floor(diffInSeconds / 86400);
+      return `${days}d ago`;
+    }
   };
 
   return (
@@ -317,37 +502,58 @@ export default function Home() {
               <DropdownMenuSeparator />
 
               {/* Account Settings */}
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleAccountSettings}>
                 <User className="mr-2 h-4 w-4" />
                 Account Settings
               </DropdownMenuItem>
 
-              {/* Privacy & Security */}
-              <DropdownMenuItem>
-                <Lock className="mr-2 h-4 w-4" />
-                Privacy & Security
-              </DropdownMenuItem>
-
               {/* Encryption Settings */}
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleEncryptionSettings}>
                 <Shield className="mr-2 h-4 w-4" />
                 Encryption Settings
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />
 
-              {/* Data Management */}
-              <DropdownMenuItem>
-                <Database className="mr-2 h-4 w-4" />
-                Data Management
-              </DropdownMenuItem>
-
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  const dataToExport = {
+                    timestamp: new Date().toISOString(),
+                    user: user?.email,
+                    note: "This is a demo export. Full export functionality coming soon!",
+                  };
+                  const blob = new Blob(
+                    [JSON.stringify(dataToExport, null, 2)],
+                    { type: "application/json" },
+                  );
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = "securespace-export.json";
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
                 <Download className="mr-2 h-4 w-4" />
                 Export Data
               </DropdownMenuItem>
 
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  const input = document.createElement("input");
+                  input.type = "file";
+                  input.accept = ".json";
+                  input.onchange = (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (file) {
+                      alert(
+                        `Selected file: ${file.name}. Import functionality coming soon!`,
+                      );
+                    }
+                  };
+                  input.click();
+                }}
+              >
                 <Upload className="mr-2 h-4 w-4" />
                 Import Data
               </DropdownMenuItem>
@@ -355,7 +561,14 @@ export default function Home() {
               <DropdownMenuSeparator />
 
               {/* Help & Support */}
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  window.open(
+                    "mailto:support@securespace.app?subject=Help Request",
+                    "_blank",
+                  );
+                }}
+              >
                 <HelpCircle className="mr-2 h-4 w-4" />
                 Help & Support
               </DropdownMenuItem>
@@ -412,14 +625,109 @@ export default function Home() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-10 w-10 border-border hover:bg-accent/50 relative"
+              <DropdownMenu
+                open={notificationsOpen}
+                onOpenChange={setNotificationsOpen}
               >
-                <BellIcon className="h-4 w-4" />
-                <div className="absolute -top-1 -right-1 h-3 w-3 bg-primary rounded-full"></div>
-              </Button>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10 border-border hover:bg-accent/50 relative"
+                  >
+                    <BellIcon className="h-4 w-4" />
+                    {unreadCount > 0 && (
+                      <div className="absolute -top-1 -right-1 h-5 w-5 bg-primary rounded-full flex items-center justify-center">
+                        <span className="text-xs text-primary-foreground font-medium">
+                          {unreadCount > 9 ? "9+" : unreadCount}
+                        </span>
+                      </div>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-80 max-h-96 overflow-y-auto"
+                >
+                  <div className="flex items-center justify-between p-3 border-b border-border">
+                    <DropdownMenuLabel className="font-semibold text-foreground p-0">
+                      Recent Activity
+                    </DropdownMenuLabel>
+                    <div className="flex gap-2">
+                      {unreadCount > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={markAllAsRead}
+                        >
+                          Mark all read
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={clearNotifications}
+                      >
+                        Clear all
+                      </Button>
+                    </div>
+                  </div>
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-center text-muted-foreground text-sm">
+                      No recent activity
+                    </div>
+                  ) : (
+                    <div className="max-h-64 overflow-y-auto">
+                      {notifications.slice(0, 10).map((notification) => (
+                        <div
+                          key={notification.id}
+                          className={`p-3 border-b border-border/50 hover:bg-accent/30 cursor-pointer transition-colors ${
+                            !notification.read ? "bg-primary/5" : ""
+                          }`}
+                          onClick={() => {
+                            if (!notification.read) {
+                              markAsRead(notification.id);
+                            }
+                          }}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="mt-0.5">
+                              {getNotificationIcon(notification.type)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium text-foreground truncate">
+                                  {notification.title}
+                                </p>
+                                {!notification.read && (
+                                  <div className="h-2 w-2 bg-primary rounded-full flex-shrink-0"></div>
+                                )}
+                              </div>
+                              {notification.description && (
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                  {notification.description}
+                                </p>
+                              )}
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {formatTimeAgo(notification.timestamp)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {notifications.length > 10 && (
+                    <div className="p-2 text-center border-t border-border">
+                      <p className="text-xs text-muted-foreground">
+                        Showing 10 of {notifications.length} notifications
+                      </p>
+                    </div>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <div className="flex items-center gap-3 px-4 py-2 rounded-lg bg-muted/30 border border-border/50">
                 <Avatar className="h-8 w-8">
                   <AvatarImage
@@ -453,6 +761,155 @@ export default function Home() {
           </div>
         </main>
       </div>
+
+      {/* Account Settings Dialog */}
+      <Dialog open={accountDialogOpen} onOpenChange={setAccountDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Account Settings
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {accountUpdateStatus && (
+              <Alert
+                variant={
+                  accountUpdateStatus.includes("Error")
+                    ? "destructive"
+                    : "default"
+                }
+              >
+                <AlertDescription>{accountUpdateStatus}</AlertDescription>
+              </Alert>
+            )}
+            <div className="grid gap-2">
+              <Label htmlFor="username">Username</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="username"
+                  placeholder="Enter username"
+                  value={accountForm.username}
+                  onChange={(e) =>
+                    setAccountForm({ ...accountForm, username: e.target.value })
+                  }
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter email"
+                  value={accountForm.email}
+                  onChange={(e) =>
+                    setAccountForm({ ...accountForm, email: e.target.value })
+                  }
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="password">New Password (optional)</Label>
+              <div className="relative">
+                <Key className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter new password"
+                  value={accountForm.password}
+                  onChange={(e) =>
+                    setAccountForm({ ...accountForm, password: e.target.value })
+                  }
+                  className="pl-10"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setAccountDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSaveAccountSettings}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Encryption Settings Dialog */}
+      <Dialog
+        open={encryptionDialogOpen}
+        onOpenChange={setEncryptionDialogOpen}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Encryption Settings
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 border border-border rounded-lg">
+                <div className="flex items-center gap-3">
+                  {hasValidPassphrase ? (
+                    <ShieldCheck className="h-5 w-5 text-green-600" />
+                  ) : (
+                    <Shield className="h-5 w-5 text-muted-foreground" />
+                  )}
+                  <div>
+                    <p className="font-medium">
+                      {hasValidPassphrase
+                        ? "Encryption Enabled"
+                        : "Encryption Disabled"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {hasValidPassphrase
+                        ? "Your data is encrypted client-side"
+                        : "Your data is stored without encryption"}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant={hasValidPassphrase ? "destructive" : "default"}
+                  onClick={handleToggleEncryption}
+                >
+                  {hasValidPassphrase ? "Disable" : "Enable"}
+                </Button>
+              </div>
+              <div className="text-sm text-muted-foreground space-y-2">
+                <p>• Encryption is performed entirely in your browser</p>
+                <p>• Your encryption key never leaves your device</p>
+                <p>
+                  • If you lose your passphrase, your data cannot be recovered
+                </p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEncryptionDialogOpen(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Encryption Setup Dialog */}
+      <EncryptionSetup
+        isOpen={encryptionSetupOpen}
+        onClose={() => setEncryptionSetupOpen(false)}
+        onComplete={handleEncryptionSetupComplete}
+      />
     </div>
   );
 }
