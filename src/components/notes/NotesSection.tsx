@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Search,
   Plus,
@@ -13,6 +13,19 @@ import {
   Save,
   X,
   FileText,
+  Bold,
+  Italic,
+  Underline,
+  List,
+  ListOrdered,
+  Quote,
+  Code,
+  Link,
+  Image,
+  Type,
+  Palette,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,6 +97,8 @@ const NotesSection = () => {
   const [newTagInput, setNewTagInput] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (user) {
@@ -395,6 +410,172 @@ const NotesSection = () => {
     setSelectedTag(null);
   };
 
+  // Markdown formatting functions
+  const insertMarkdown = (before: string, after: string = "") => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = editContent.substring(start, end);
+    const newText = before + selectedText + after;
+
+    const newContent =
+      editContent.substring(0, start) + newText + editContent.substring(end);
+    setEditContent(newContent);
+
+    // Set cursor position after formatting
+    setTimeout(() => {
+      textarea.focus();
+      const newCursorPos =
+        start + before.length + selectedText.length + after.length;
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
+
+  const formatBold = () => insertMarkdown("**", "**");
+  const formatItalic = () => insertMarkdown("*", "*");
+  const formatUnderline = () => insertMarkdown("<u>", "</u>");
+  const formatCode = () => insertMarkdown("`", "`");
+  const formatQuote = () => insertMarkdown("> ");
+  const formatList = () => insertMarkdown("- ");
+  const formatOrderedList = () => insertMarkdown("1. ");
+  const formatLink = () => insertMarkdown("[", "](url)");
+  const formatImage = () => insertMarkdown("![", "](image-url)");
+  const formatHeading = (level: number) =>
+    insertMarkdown("#".repeat(level) + " ");
+
+  // Enhanced Markdown renderer
+  const renderMarkdown = (content: string) => {
+    const lines = content.split("\n");
+    return lines.map((line, i) => {
+      const key = `line-${i}`;
+
+      // Headers
+      if (line.startsWith("# ")) {
+        return (
+          <h1
+            key={key}
+            className="text-3xl font-bold mb-4 text-foreground border-b border-border pb-2"
+          >
+            {line.substring(2)}
+          </h1>
+        );
+      }
+      if (line.startsWith("## ")) {
+        return (
+          <h2 key={key} className="text-2xl font-bold mb-3 text-foreground">
+            {line.substring(3)}
+          </h2>
+        );
+      }
+      if (line.startsWith("### ")) {
+        return (
+          <h3 key={key} className="text-xl font-bold mb-2 text-foreground">
+            {line.substring(4)}
+          </h3>
+        );
+      }
+      if (line.startsWith("#### ")) {
+        return (
+          <h4 key={key} className="text-lg font-bold mb-2 text-foreground">
+            {line.substring(5)}
+          </h4>
+        );
+      }
+
+      // Lists
+      if (line.startsWith("- ") || line.startsWith("* ")) {
+        return (
+          <div key={key} className="flex items-start mb-1">
+            <span className="mr-2 text-primary">•</span>
+            <span className="text-foreground">
+              {parseInlineMarkdown(line.substring(2))}
+            </span>
+          </div>
+        );
+      }
+
+      // Ordered lists
+      if (/^\d+\. /.test(line)) {
+        const match = line.match(/^(\d+\. )(.*)/);
+        if (match) {
+          return (
+            <div key={key} className="flex items-start mb-1">
+              <span className="mr-2 text-primary font-medium">{match[1]}</span>
+              <span className="text-foreground">
+                {parseInlineMarkdown(match[2])}
+              </span>
+            </div>
+          );
+        }
+      }
+
+      // Blockquotes
+      if (line.startsWith("> ")) {
+        return (
+          <blockquote
+            key={key}
+            className="border-l-4 border-primary pl-4 py-2 mb-2 bg-muted/30 italic text-muted-foreground"
+          >
+            {parseInlineMarkdown(line.substring(2))}
+          </blockquote>
+        );
+      }
+
+      // Code blocks (simple)
+      if (line.startsWith("```")) {
+        return (
+          <div
+            key={key}
+            className="bg-muted p-3 rounded-md font-mono text-sm mb-2 border border-border"
+          >
+            <code className="text-foreground">{line.substring(3)}</code>
+          </div>
+        );
+      }
+
+      // Empty lines
+      if (line.trim() === "") {
+        return <div key={key} className="mb-2"></div>;
+      }
+
+      // Regular paragraphs
+      return (
+        <p key={key} className="mb-2 text-foreground leading-relaxed">
+          {parseInlineMarkdown(line)}
+        </p>
+      );
+    });
+  };
+
+  // Parse inline markdown (bold, italic, code, links)
+  const parseInlineMarkdown = (text: string) => {
+    // Handle bold **text**
+    text = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    // Handle italic *text*
+    text = text.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<em>$1</em>");
+    // Handle underline <u>text</u>
+    text = text.replace(/<u>(.*?)<\/u>/g, "<u>$1</u>");
+    // Handle inline code `code`
+    text = text.replace(
+      /`([^`]+)`/g,
+      '<code class="bg-muted px-1 py-0.5 rounded text-sm font-mono border">$1</code>',
+    );
+    // Handle links [text](url)
+    text = text.replace(
+      /\[([^\]]+)\]\(([^)]+)\)/g,
+      '<a href="$2" class="text-primary hover:underline" target="_blank" rel="noopener noreferrer">$1</a>',
+    );
+    // Handle images ![alt](url)
+    text = text.replace(
+      /!\[([^\]]*)\]\(([^)]+)\)/g,
+      '<img src="$2" alt="$1" class="max-w-full h-auto rounded-md border border-border my-2" />',
+    );
+
+    return <span dangerouslySetInnerHTML={{ __html: text }} />;
+  };
+
   return (
     <div className="h-full w-full bg-background">
       <ResizablePanelGroup direction="horizontal" className="h-full">
@@ -612,8 +793,23 @@ const NotesSection = () => {
                     {selectedNote.title}
                   </h2>
                   <div className="flex gap-2">
+                    {isEditing && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setIsPreviewMode(!isPreviewMode)}
+                      >
+                        {isPreviewMode ? (
+                          <EyeOff className="h-4 w-4 mr-1" />
+                        ) : (
+                          <Eye className="h-4 w-4 mr-1" />
+                        )}
+                        {isPreviewMode ? "Edit" : "Preview"}
+                      </Button>
+                    )}
                     {isEditing ? (
                       <Button size="sm" onClick={handleSaveEdit}>
+                        <Save className="h-4 w-4 mr-1" />
                         Save
                       </Button>
                     ) : (
@@ -622,57 +818,189 @@ const NotesSection = () => {
                         variant="outline"
                         onClick={handleEditClick}
                       >
+                        <Edit className="h-4 w-4 mr-1" />
                         Edit
                       </Button>
                     )}
                   </div>
                 </div>
+
+                {/* Formatting Toolbar */}
+                {isEditing && !isPreviewMode && (
+                  <div className="border-b border-border bg-card/20 p-3">
+                    <div className="flex flex-wrap gap-1">
+                      {/* Text Formatting */}
+                      <div className="flex gap-1 mr-4">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={formatBold}
+                          title="Bold (Ctrl+B)"
+                          className="h-8 w-8 p-0"
+                        >
+                          <Bold className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={formatItalic}
+                          title="Italic (Ctrl+I)"
+                          className="h-8 w-8 p-0"
+                        >
+                          <Italic className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={formatUnderline}
+                          title="Underline (Ctrl+U)"
+                          className="h-8 w-8 p-0"
+                        >
+                          <Underline className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={formatCode}
+                          title="Inline Code"
+                          className="h-8 w-8 p-0"
+                        >
+                          <Code className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      {/* Headings */}
+                      <div className="flex gap-1 mr-4">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => formatHeading(1)}
+                          title="Heading 1"
+                          className="h-8 px-2 text-xs font-bold"
+                        >
+                          H1
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => formatHeading(2)}
+                          title="Heading 2"
+                          className="h-8 px-2 text-xs font-bold"
+                        >
+                          H2
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => formatHeading(3)}
+                          title="Heading 3"
+                          className="h-8 px-2 text-xs font-bold"
+                        >
+                          H3
+                        </Button>
+                      </div>
+
+                      {/* Lists and Quotes */}
+                      <div className="flex gap-1 mr-4">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={formatList}
+                          title="Bullet List"
+                          className="h-8 w-8 p-0"
+                        >
+                          <List className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={formatOrderedList}
+                          title="Numbered List"
+                          className="h-8 w-8 p-0"
+                        >
+                          <ListOrdered className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={formatQuote}
+                          title="Quote"
+                          className="h-8 w-8 p-0"
+                        >
+                          <Quote className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      {/* Links and Images */}
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={formatLink}
+                          title="Insert Link"
+                          className="h-8 w-8 p-0"
+                        >
+                          <Link className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={formatImage}
+                          title="Insert Image"
+                          className="h-8 w-8 p-0"
+                        >
+                          <Image className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-muted-foreground mt-2">
+                      💡 Tip: Use Markdown syntax for formatting. Select text
+                      and click buttons to apply formatting.
+                    </div>
+                  </div>
+                )}
                 <div className="flex-1 overflow-auto p-6">
                   {isEditing ? (
-                    <Textarea
-                      className="min-h-[calc(100vh-12rem)] w-full p-4 font-mono"
-                      value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                    />
+                    isPreviewMode ? (
+                      <div className="prose prose-sm max-w-none min-h-[calc(100vh-16rem)]">
+                        {renderMarkdown(editContent)}
+                      </div>
+                    ) : (
+                      <Textarea
+                        ref={textareaRef}
+                        className="min-h-[calc(100vh-16rem)] w-full p-4 font-mono text-sm leading-relaxed resize-none border-0 focus:ring-0 focus:outline-none bg-transparent"
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        placeholder="Start writing your note in Markdown...\n\n# Heading 1\n## Heading 2\n\n**Bold text** and *italic text*\n\n- Bullet point\n1. Numbered list\n\n> Quote\n\n`inline code`\n\n[Link text](url)\n\n![Image alt](image-url)"
+                        onKeyDown={(e) => {
+                          // Handle keyboard shortcuts
+                          if (e.ctrlKey || e.metaKey) {
+                            switch (e.key) {
+                              case "b":
+                                e.preventDefault();
+                                formatBold();
+                                break;
+                              case "i":
+                                e.preventDefault();
+                                formatItalic();
+                                break;
+                              case "u":
+                                e.preventDefault();
+                                formatUnderline();
+                                break;
+                              case "`":
+                                e.preventDefault();
+                                formatCode();
+                                break;
+                            }
+                          }
+                        }}
+                      />
+                    )
                   ) : (
-                    <div className="prose prose-sm max-w-none">
-                      {selectedNote.content.split("\n").map((line, i) => (
-                        <div key={i} className="mb-2">
-                          {line.startsWith("# ") ? (
-                            <h1 className="text-2xl font-bold">
-                              {line.substring(2)}
-                            </h1>
-                          ) : line.startsWith("## ") ? (
-                            <h2 className="text-xl font-bold">
-                              {line.substring(3)}
-                            </h2>
-                          ) : line.startsWith("### ") ? (
-                            <h3 className="text-lg font-bold">
-                              {line.substring(4)}
-                            </h3>
-                          ) : line.startsWith("- ") ? (
-                            <div className="flex">
-                              <span className="mr-2">•</span>
-                              <span>{line.substring(2)}</span>
-                            </div>
-                          ) : line.startsWith("1. ") ||
-                            line.startsWith("2. ") ||
-                            line.startsWith("3. ") ? (
-                            <div className="flex">
-                              <span className="mr-2">
-                                {line.substring(0, 2)}
-                              </span>
-                              <span>{line.substring(3)}</span>
-                            </div>
-                          ) : line.startsWith("**") && line.endsWith("**") ? (
-                            <p className="font-bold">
-                              {line.substring(2, line.length - 2)}
-                            </p>
-                          ) : (
-                            <p>{line}</p>
-                          )}
-                        </div>
-                      ))}
+                    <div className="prose prose-sm max-w-none min-h-[calc(100vh-12rem)]">
+                      {renderMarkdown(selectedNote.content)}
                     </div>
                   )}
                 </div>
@@ -781,12 +1109,12 @@ const NotesSection = () => {
             </div>
             <div className="grid gap-2">
               <label htmlFor="note-content" className="text-sm font-medium">
-                Content
+                Content (Markdown supported)
               </label>
               <Textarea
                 id="note-content"
-                placeholder="Write your note content here..."
-                className="min-h-[200px]"
+                placeholder="Write your note content here using Markdown...\n\nExamples:\n# Heading\n**Bold** and *italic*\n- List item\n> Quote\n`code`"
+                className="min-h-[200px] font-mono text-sm"
                 value={newNote.content}
                 onChange={(e) =>
                   setNewNote({ ...newNote, content: e.target.value })
