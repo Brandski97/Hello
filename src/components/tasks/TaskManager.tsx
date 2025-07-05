@@ -61,6 +61,9 @@ type Task = {
   encrypted?: boolean;
   encryption_iv?: string;
   encryption_salt?: string;
+  title_encrypted?: boolean;
+  title_encryption_iv?: string;
+  title_encryption_salt?: string;
 };
 
 const TaskManager = () => {
@@ -109,6 +112,9 @@ const TaskManager = () => {
       // Decrypt tasks if encryption is enabled
       const decryptedTasks = await Promise.all(
         (data || []).map(async (task) => {
+          let decryptedTask = { ...task };
+
+          // Decrypt description if encrypted
           if (
             task.encrypted &&
             hasValidPassphrase &&
@@ -121,19 +127,35 @@ const TaskManager = () => {
                 task.encryption_iv,
                 task.encryption_salt,
               );
-              return {
-                ...task,
-                description: decryptedDescription || "[Decryption failed]",
-              };
+              decryptedTask.description =
+                decryptedDescription || "[Decryption failed]";
             } catch (error) {
-              console.error("Failed to decrypt task:", error);
-              return {
-                ...task,
-                description: "[Encrypted - Cannot decrypt]",
-              };
+              console.error("Failed to decrypt task description:", error);
+              decryptedTask.description = "[Encrypted - Cannot decrypt]";
             }
           }
-          return task;
+
+          // Decrypt title if encrypted
+          if (
+            task.title_encrypted &&
+            hasValidPassphrase &&
+            task.title_encryption_iv &&
+            task.title_encryption_salt
+          ) {
+            try {
+              const decryptedTitle = await decryptContent(
+                task.title,
+                task.title_encryption_iv,
+                task.title_encryption_salt,
+              );
+              decryptedTask.title = decryptedTitle || "[Decryption failed]";
+            } catch (error) {
+              console.error("Failed to decrypt task title:", error);
+              decryptedTask.title = "[Encrypted - Cannot decrypt]";
+            }
+          }
+
+          return decryptedTask;
         }),
       );
 
@@ -184,6 +206,7 @@ const TaskManager = () => {
         linked_note: newTask.linked_note,
         user_id: user.id,
         encrypted: false,
+        title_encrypted: false,
       };
 
       // Encrypt description if encryption is enabled and description exists
@@ -200,6 +223,20 @@ const TaskManager = () => {
         }
       }
 
+      // Encrypt title if encryption is enabled
+      if (hasValidPassphrase && newTask.title) {
+        const titleEncryptionResult = await encryptContent(newTask.title);
+        if (titleEncryptionResult) {
+          taskData = {
+            ...taskData,
+            title: titleEncryptionResult.encryptedData,
+            title_encrypted: true,
+            title_encryption_iv: titleEncryptionResult.iv,
+            title_encryption_salt: titleEncryptionResult.salt,
+          };
+        }
+      }
+
       const { data, error } = await supabase
         .from("tasks")
         .insert(taskData)
@@ -212,6 +249,7 @@ const TaskManager = () => {
       const displayTask = {
         ...data,
         description: newTask.description || "", // Show original description in UI
+        title: newTask.title, // Show original title in UI
       };
 
       setTasks([displayTask, ...tasks]);
@@ -264,6 +302,9 @@ const TaskManager = () => {
         encrypted: false,
         encryption_iv: null,
         encryption_salt: null,
+        title_encrypted: false,
+        title_encryption_iv: null,
+        title_encryption_salt: null,
       };
 
       // Encrypt description if encryption is enabled and description exists
@@ -276,6 +317,20 @@ const TaskManager = () => {
             encrypted: true,
             encryption_iv: encryptionResult.iv,
             encryption_salt: encryptionResult.salt,
+          };
+        }
+      }
+
+      // Encrypt title if encryption is enabled
+      if (hasValidPassphrase && currentTask.title) {
+        const titleEncryptionResult = await encryptContent(currentTask.title);
+        if (titleEncryptionResult) {
+          updateData = {
+            ...updateData,
+            title: titleEncryptionResult.encryptedData,
+            title_encrypted: true,
+            title_encryption_iv: titleEncryptionResult.iv,
+            title_encryption_salt: titleEncryptionResult.salt,
           };
         }
       }
@@ -294,6 +349,9 @@ const TaskManager = () => {
               encrypted: updateData.encrypted,
               encryption_iv: updateData.encryption_iv,
               encryption_salt: updateData.encryption_salt,
+              title_encrypted: updateData.title_encrypted,
+              title_encryption_iv: updateData.title_encryption_iv,
+              title_encryption_salt: updateData.title_encryption_salt,
             }
           : task,
       );

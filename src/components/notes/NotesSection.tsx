@@ -71,6 +71,9 @@ interface Note {
   encrypted?: boolean;
   encryption_iv?: string;
   encryption_salt?: string;
+  title_encrypted?: boolean;
+  title_encryption_iv?: string;
+  title_encryption_salt?: string;
 }
 
 const NotesSection = () => {
@@ -131,6 +134,9 @@ const NotesSection = () => {
       // Decrypt notes if encryption is enabled
       const decryptedNotes = await Promise.all(
         (data || []).map(async (note) => {
+          let decryptedNote = { ...note };
+
+          // Decrypt content if encrypted
           if (
             note.encrypted &&
             hasValidPassphrase &&
@@ -143,19 +149,34 @@ const NotesSection = () => {
                 note.encryption_iv,
                 note.encryption_salt,
               );
-              return {
-                ...note,
-                content: decryptedContent || "[Decryption failed]",
-              };
+              decryptedNote.content = decryptedContent || "[Decryption failed]";
             } catch (error) {
-              console.error("Failed to decrypt note:", error);
-              return {
-                ...note,
-                content: "[Encrypted - Cannot decrypt]",
-              };
+              console.error("Failed to decrypt note content:", error);
+              decryptedNote.content = "[Encrypted - Cannot decrypt]";
             }
           }
-          return note;
+
+          // Decrypt title if encrypted
+          if (
+            note.title_encrypted &&
+            hasValidPassphrase &&
+            note.title_encryption_iv &&
+            note.title_encryption_salt
+          ) {
+            try {
+              const decryptedTitle = await decryptContent(
+                note.title,
+                note.title_encryption_iv,
+                note.title_encryption_salt,
+              );
+              decryptedNote.title = decryptedTitle || "[Decryption failed]";
+            } catch (error) {
+              console.error("Failed to decrypt note title:", error);
+              decryptedNote.title = "[Encrypted - Cannot decrypt]";
+            }
+          }
+
+          return decryptedNote;
         }),
       );
 
@@ -181,6 +202,7 @@ const NotesSection = () => {
         tags: newNote.tags.length > 0 ? newNote.tags : null,
         user_id: user.id,
         encrypted: false,
+        title_encrypted: false,
       };
 
       // Encrypt content if encryption is enabled
@@ -197,6 +219,20 @@ const NotesSection = () => {
         }
       }
 
+      // Encrypt title if encryption is enabled
+      if (hasValidPassphrase && newNote.title) {
+        const titleEncryptionResult = await encryptContent(newNote.title);
+        if (titleEncryptionResult) {
+          noteData = {
+            ...noteData,
+            title: titleEncryptionResult.encryptedData,
+            title_encrypted: true,
+            title_encryption_iv: titleEncryptionResult.iv,
+            title_encryption_salt: titleEncryptionResult.salt,
+          };
+        }
+      }
+
       const { data, error } = await supabase
         .from("notes")
         .insert(noteData)
@@ -209,6 +245,7 @@ const NotesSection = () => {
       const displayNote = {
         ...data,
         content: newNote.content, // Show original content in UI
+        title: newNote.title, // Show original title in UI
       };
 
       setNotes([displayNote, ...notes]);
@@ -303,6 +340,9 @@ const NotesSection = () => {
         encrypted: false,
         encryption_iv: null,
         encryption_salt: null,
+        title_encrypted: false,
+        title_encryption_iv: null,
+        title_encryption_salt: null,
       };
 
       // Encrypt content if encryption is enabled
@@ -310,10 +350,25 @@ const NotesSection = () => {
         const encryptionResult = await encryptContent(editContent);
         if (encryptionResult) {
           updateData = {
+            ...updateData,
             content: encryptionResult.encryptedData,
             encrypted: true,
             encryption_iv: encryptionResult.iv,
             encryption_salt: encryptionResult.salt,
+          };
+        }
+      }
+
+      // Encrypt title if encryption is enabled
+      if (hasValidPassphrase && selectedNote.title) {
+        const titleEncryptionResult = await encryptContent(selectedNote.title);
+        if (titleEncryptionResult) {
+          updateData = {
+            ...updateData,
+            title: titleEncryptionResult.encryptedData,
+            title_encrypted: true,
+            title_encryption_iv: titleEncryptionResult.iv,
+            title_encryption_salt: titleEncryptionResult.salt,
           };
         }
       }
@@ -330,10 +385,14 @@ const NotesSection = () => {
           ? {
               ...note,
               content: editContent, // Show decrypted content in UI
+              title: selectedNote.title, // Show decrypted title in UI
               updated_at: new Date().toISOString(),
               encrypted: updateData.encrypted,
               encryption_iv: updateData.encryption_iv,
               encryption_salt: updateData.encryption_salt,
+              title_encrypted: updateData.title_encrypted,
+              title_encryption_iv: updateData.title_encryption_iv,
+              title_encryption_salt: updateData.title_encryption_salt,
             }
           : note,
       );
@@ -341,10 +400,14 @@ const NotesSection = () => {
       setSelectedNote({
         ...selectedNote,
         content: editContent,
+        title: selectedNote.title, // Show decrypted title in UI
         updated_at: new Date().toISOString(),
         encrypted: updateData.encrypted,
         encryption_iv: updateData.encryption_iv,
         encryption_salt: updateData.encryption_salt,
+        title_encrypted: updateData.title_encrypted,
+        title_encryption_iv: updateData.title_encryption_iv,
+        title_encryption_salt: updateData.title_encryption_salt,
       });
 
       // Add notification

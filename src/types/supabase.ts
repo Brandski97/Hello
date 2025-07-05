@@ -25,6 +25,9 @@ export type Database = {
           location: string | null
           start_time: string
           title: string
+          title_encrypted: boolean | null
+          title_encryption_iv: string | null
+          title_encryption_salt: string | null
           updated_at: string | null
           user_id: string | null
         }
@@ -43,6 +46,9 @@ export type Database = {
           location?: string | null
           start_time: string
           title: string
+          title_encrypted?: boolean | null
+          title_encryption_iv?: string | null
+          title_encryption_salt?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -61,6 +67,9 @@ export type Database = {
           location?: string | null
           start_time?: string
           title?: string
+          title_encrypted?: boolean | null
+          title_encryption_iv?: string | null
+          title_encryption_salt?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -93,6 +102,9 @@ export type Database = {
           starred: boolean | null
           tags: string[] | null
           title: string
+          title_encrypted: boolean | null
+          title_encryption_iv: string | null
+          title_encryption_salt: string | null
           updated_at: string | null
           user_id: string | null
         }
@@ -107,6 +119,9 @@ export type Database = {
           starred?: boolean | null
           tags?: string[] | null
           title: string
+          title_encrypted?: boolean | null
+          title_encryption_iv?: string | null
+          title_encryption_salt?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -121,6 +136,9 @@ export type Database = {
           starred?: boolean | null
           tags?: string[] | null
           title?: string
+          title_encrypted?: boolean | null
+          title_encryption_iv?: string | null
+          title_encryption_salt?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -141,6 +159,9 @@ export type Database = {
           linked_note: string | null
           priority: string | null
           title: string
+          title_encrypted: boolean | null
+          title_encryption_iv: string | null
+          title_encryption_salt: string | null
           updated_at: string | null
           user_id: string | null
         }
@@ -158,6 +179,9 @@ export type Database = {
           linked_note?: string | null
           priority?: string | null
           title: string
+          title_encrypted?: boolean | null
+          title_encryption_iv?: string | null
+          title_encryption_salt?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -175,6 +199,9 @@ export type Database = {
           linked_note?: string | null
           priority?: string | null
           title?: string
+          title_encrypted?: boolean | null
+          title_encryption_iv?: string | null
+          title_encryption_salt?: string | null
           updated_at?: string | null
           user_id?: string | null
         }

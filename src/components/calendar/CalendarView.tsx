@@ -69,6 +69,9 @@ interface Event {
   encrypted?: boolean;
   encryption_iv?: string;
   encryption_salt?: string;
+  title_encrypted?: boolean;
+  title_encryption_iv?: string;
+  title_encryption_salt?: string;
   created_at: string;
   updated_at: string;
 }
@@ -132,6 +135,9 @@ const CalendarView = () => {
       // Decrypt events if encryption is enabled
       const decryptedEvents = await Promise.all(
         (data || []).map(async (event) => {
+          let decryptedEvent = { ...event };
+
+          // Decrypt description if encrypted
           if (
             event.encrypted &&
             hasValidPassphrase &&
@@ -144,19 +150,35 @@ const CalendarView = () => {
                 event.encryption_iv,
                 event.encryption_salt,
               );
-              return {
-                ...event,
-                description: decryptedDescription || "[Decryption failed]",
-              };
+              decryptedEvent.description =
+                decryptedDescription || "[Decryption failed]";
             } catch (error) {
-              console.error("Failed to decrypt event:", error);
-              return {
-                ...event,
-                description: "[Encrypted - Cannot decrypt]",
-              };
+              console.error("Failed to decrypt event description:", error);
+              decryptedEvent.description = "[Encrypted - Cannot decrypt]";
             }
           }
-          return event;
+
+          // Decrypt title if encrypted
+          if (
+            event.title_encrypted &&
+            hasValidPassphrase &&
+            event.title_encryption_iv &&
+            event.title_encryption_salt
+          ) {
+            try {
+              const decryptedTitle = await decryptContent(
+                event.title,
+                event.title_encryption_iv,
+                event.title_encryption_salt,
+              );
+              decryptedEvent.title = decryptedTitle || "[Decryption failed]";
+            } catch (error) {
+              console.error("Failed to decrypt event title:", error);
+              decryptedEvent.title = "[Encrypted - Cannot decrypt]";
+            }
+          }
+
+          return decryptedEvent;
         }),
       );
 
@@ -242,6 +264,7 @@ const CalendarView = () => {
         linked_note: newEvent.linked_note || null,
         linked_task: newEvent.linked_task || null,
         encrypted: false,
+        title_encrypted: false,
       };
 
       // Encrypt description if encryption is enabled and description exists
@@ -258,6 +281,20 @@ const CalendarView = () => {
         }
       }
 
+      // Encrypt title if encryption is enabled
+      if (hasValidPassphrase && newEvent.title) {
+        const titleEncryptionResult = await encryptContent(newEvent.title);
+        if (titleEncryptionResult) {
+          eventData = {
+            ...eventData,
+            title: titleEncryptionResult.encryptedData,
+            title_encrypted: true,
+            title_encryption_iv: titleEncryptionResult.iv,
+            title_encryption_salt: titleEncryptionResult.salt,
+          };
+        }
+      }
+
       const { data, error } = await supabase
         .from("events")
         .insert(eventData)
@@ -270,6 +307,7 @@ const CalendarView = () => {
       const displayEvent = {
         ...data,
         description: newEvent.description || "", // Show original description in UI
+        title: newEvent.title, // Show original title in UI
       };
 
       setEvents([...events, displayEvent]);
