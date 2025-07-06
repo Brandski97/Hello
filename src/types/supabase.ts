@@ -23,6 +23,7 @@ export type Database = {
           linked_note: string | null
           linked_task: string | null
           location: string | null
+          project_id: string | null
           start_time: string
           title: string
           title_encrypted: boolean | null
@@ -44,6 +45,7 @@ export type Database = {
           linked_note?: string | null
           linked_task?: string | null
           location?: string | null
+          project_id?: string | null
           start_time: string
           title: string
           title_encrypted?: boolean | null
@@ -65,6 +67,7 @@ export type Database = {
           linked_note?: string | null
           linked_task?: string | null
           location?: string | null
+          project_id?: string | null
           start_time?: string
           title?: string
           title_encrypted?: boolean | null
@@ -88,6 +91,13 @@ export type Database = {
             referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
         ]
       }
       notes: {
@@ -99,6 +109,7 @@ export type Database = {
           encryption_iv: string | null
           encryption_salt: string | null
           id: string
+          project_id: string | null
           starred: boolean | null
           tags: string[] | null
           title: string
@@ -116,6 +127,7 @@ export type Database = {
           encryption_iv?: string | null
           encryption_salt?: string | null
           id?: string
+          project_id?: string | null
           starred?: boolean | null
           tags?: string[] | null
           title: string
@@ -133,8 +145,145 @@ export type Database = {
           encryption_iv?: string | null
           encryption_salt?: string | null
           id?: string
+          project_id?: string | null
           starred?: boolean | null
           tags?: string[] | null
+          title?: string
+          title_encrypted?: boolean | null
+          title_encryption_iv?: string | null
+          title_encryption_salt?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_goals: {
+        Row: {
+          completed: boolean | null
+          created_at: string | null
+          current_value: number | null
+          description: string | null
+          due_date: string | null
+          encrypted: boolean | null
+          encryption_iv: string | null
+          encryption_salt: string | null
+          id: string
+          project_id: string | null
+          target_value: number | null
+          title: string
+          title_encrypted: boolean | null
+          title_encryption_iv: string | null
+          title_encryption_salt: string | null
+          unit: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          completed?: boolean | null
+          created_at?: string | null
+          current_value?: number | null
+          description?: string | null
+          due_date?: string | null
+          encrypted?: boolean | null
+          encryption_iv?: string | null
+          encryption_salt?: string | null
+          id?: string
+          project_id?: string | null
+          target_value?: number | null
+          title: string
+          title_encrypted?: boolean | null
+          title_encryption_iv?: string | null
+          title_encryption_salt?: string | null
+          unit?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          completed?: boolean | null
+          created_at?: string | null
+          current_value?: number | null
+          description?: string | null
+          due_date?: string | null
+          encrypted?: boolean | null
+          encryption_iv?: string | null
+          encryption_salt?: string | null
+          id?: string
+          project_id?: string | null
+          target_value?: number | null
+          title?: string
+          title_encrypted?: boolean | null
+          title_encryption_iv?: string | null
+          title_encryption_salt?: string | null
+          unit?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_goals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          description: string | null
+          encrypted: boolean | null
+          encryption_iv: string | null
+          encryption_salt: string | null
+          end_date: string | null
+          id: string
+          start_date: string | null
+          status: string | null
+          title: string
+          title_encrypted: boolean | null
+          title_encryption_iv: string | null
+          title_encryption_salt: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          encrypted?: boolean | null
+          encryption_iv?: string | null
+          encryption_salt?: string | null
+          end_date?: string | null
+          id?: string
+          start_date?: string | null
+          status?: string | null
+          title: string
+          title_encrypted?: boolean | null
+          title_encryption_iv?: string | null
+          title_encryption_salt?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          encrypted?: boolean | null
+          encryption_iv?: string | null
+          encryption_salt?: string | null
+          end_date?: string | null
+          id?: string
+          start_date?: string | null
+          status?: string | null
           title?: string
           title_encrypted?: boolean | null
           title_encryption_iv?: string | null
@@ -158,6 +307,7 @@ export type Database = {
           linked_event: string | null
           linked_note: string | null
           priority: string | null
+          project_id: string | null
           title: string
           title_encrypted: boolean | null
           title_encryption_iv: string | null
@@ -178,6 +328,7 @@ export type Database = {
           linked_event?: string | null
           linked_note?: string | null
           priority?: string | null
+          project_id?: string | null
           title: string
           title_encrypted?: boolean | null
           title_encryption_iv?: string | null
@@ -198,6 +349,7 @@ export type Database = {
           linked_event?: string | null
           linked_note?: string | null
           priority?: string | null
+          project_id?: string | null
           title?: string
           title_encrypted?: boolean | null
           title_encryption_iv?: string | null
@@ -205,7 +357,15 @@ export type Database = {
           updated_at?: string | null
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

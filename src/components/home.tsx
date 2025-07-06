@@ -27,6 +27,7 @@ import {
   Mail,
   Key,
   Edit,
+  FolderOpen,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -56,6 +57,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import CalendarView from "./calendar/CalendarView";
 import NotesSection from "./notes/NotesSection";
 import TaskManager from "./tasks/TaskManager";
+import ProjectsSection from "./projects/ProjectsSection";
 import EncryptionSetup from "./auth/EncryptionSetup";
 
 interface AIInsightProps {
@@ -421,6 +423,14 @@ export default function Home() {
             Tasks
           </Button>
           <Button
+            variant={activeView === "projects" ? "default" : "ghost"}
+            className="w-full justify-start h-12 text-left font-medium transition-all duration-200 hover:bg-accent/50"
+            onClick={() => setActiveView("projects")}
+          >
+            <FolderOpen className="mr-3 h-5 w-5" />
+            Projects
+          </Button>
+          <Button
             variant={activeView === "ai" ? "default" : "ghost"}
             className="w-full justify-start h-12 text-left font-medium transition-all duration-200 hover:bg-accent/50"
             onClick={() => setActiveView("ai")}
@@ -623,6 +633,10 @@ export default function Home() {
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     Create Event
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveView("projects")}>
+                    <FolderOpen className="mr-2 h-4 w-4" />
+                    Create Project
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
               <DropdownMenu
@@ -757,6 +771,7 @@ export default function Home() {
             {activeView === "calendar" && <CalendarView />}
             {activeView === "notes" && <NotesSection />}
             {activeView === "tasks" && <TaskManager />}
+            {activeView === "projects" && <ProjectsSection />}
             {activeView === "ai" && <AIAssistant />}
           </div>
         </main>
