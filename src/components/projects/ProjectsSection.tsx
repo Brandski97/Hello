@@ -15,6 +15,10 @@ import {
   Play,
   Pause,
   FolderOpen,
+  ChevronDown,
+  ChevronUp,
+  X,
+  Link,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -30,6 +34,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -120,8 +131,21 @@ const ProjectsSection = () => {
   const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
   const [isEditProjectDialogOpen, setIsEditProjectDialogOpen] = useState(false);
   const [isNewGoalDialogOpen, setIsNewGoalDialogOpen] = useState(false);
+  const [isEditGoalDialogOpen, setIsEditGoalDialogOpen] = useState(false);
+  const [expandedGoalId, setExpandedGoalId] = useState<string | null>(null);
+  const [selectedGoalForEdit, setSelectedGoalForEdit] =
+    useState<ProjectGoal | null>(null);
   const [activeTab, setActiveTab] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [availableTasks, setAvailableTasks] = useState<
+    { id: string; title: string }[]
+  >([]);
+  const [availableNotes, setAvailableNotes] = useState<
+    { id: string; title: string }[]
+  >([]);
+  const [linkedItems, setLinkedItems] = useState<
+    Record<string, { tasks: string[]; notes: string[] }>
+  >({});
 
   const [newProject, setNewProject] = useState<Partial<Project>>({
     title: "",
@@ -168,8 +192,37 @@ const ProjectsSection = () => {
     if (selectedProject) {
       fetchProjectGoals(selectedProject.id);
       fetchProjectStats(selectedProject.id);
+      fetchAvailableTasksAndNotes();
     }
   }, [selectedProject]);
+
+  const fetchAvailableTasksAndNotes = async () => {
+    if (!user) return;
+
+    try {
+      // Fetch tasks
+      const { data: tasks, error: tasksError } = await supabase
+        .from("tasks")
+        .select("id, title")
+        .eq("user_id", user.id)
+        .order("title", { ascending: true });
+
+      if (tasksError) throw tasksError;
+      setAvailableTasks(tasks || []);
+
+      // Fetch notes
+      const { data: notes, error: notesError } = await supabase
+        .from("notes")
+        .select("id, title")
+        .eq("user_id", user.id)
+        .order("title", { ascending: true });
+
+      if (notesError) throw notesError;
+      setAvailableNotes(notes || []);
+    } catch (error) {
+      console.error("Error fetching tasks and notes:", error);
+    }
+  };
 
   const fetchProjects = async () => {
     try {
@@ -550,6 +603,251 @@ const ProjectsSection = () => {
     }
   };
 
+  const handleEditProject = async () => {
+    if (!user || !newProject.title?.trim() || !newProject.id) return;
+
+    try {
+      let updateData: any = {
+        title: newProject.title,
+        description: newProject.description || "",
+        color: newProject.color || "bg-blue-500",
+        status: newProject.status || "active",
+        start_date: newProject.start_date,
+        end_date: newProject.end_date,
+        encrypted: false,
+        encryption_iv: null,
+        encryption_salt: null,
+        title_encrypted: false,
+        title_encryption_iv: null,
+        title_encryption_salt: null,
+      };
+
+      // Encrypt description if encryption is enabled and description exists
+      if (hasValidPassphrase && newProject.description) {
+        const encryptionResult = await encryptContent(newProject.description);
+        if (encryptionResult) {
+          updateData = {
+            ...updateData,
+            description: encryptionResult.encryptedData,
+            encrypted: true,
+            encryption_iv: encryptionResult.iv,
+            encryption_salt: encryptionResult.salt,
+          };
+        }
+      }
+
+      // Encrypt title if encryption is enabled
+      if (hasValidPassphrase && newProject.title) {
+        const titleEncryptionResult = await encryptContent(newProject.title);
+        if (titleEncryptionResult) {
+          updateData = {
+            ...updateData,
+            title: titleEncryptionResult.encryptedData,
+            title_encrypted: true,
+            title_encryption_iv: titleEncryptionResult.iv,
+            title_encryption_salt: titleEncryptionResult.salt,
+          };
+        }
+      }
+
+      const { error } = await supabase
+        .from("projects")
+        .update(updateData)
+        .eq("id", newProject.id);
+
+      if (error) throw error;
+
+      // Update local state
+      const updatedProject = {
+        ...newProject,
+        description: newProject.description || "",
+        title: newProject.title,
+        encrypted: updateData.encrypted,
+        encryption_iv: updateData.encryption_iv,
+        encryption_salt: updateData.encryption_salt,
+        title_encrypted: updateData.title_encrypted,
+        title_encryption_iv: updateData.title_encryption_iv,
+        title_encryption_salt: updateData.title_encryption_salt,
+      } as Project;
+
+      setProjects(
+        projects.map((p) => (p.id === newProject.id ? updatedProject : p)),
+      );
+      if (selectedProject?.id === newProject.id) {
+        setSelectedProject(updatedProject);
+      }
+
+      // Add notification
+      addNotification({
+        type: "note",
+        action: "updated",
+        title: "Project Updated",
+        description: `"${newProject.title}" project has been updated`,
+      });
+
+      setIsEditProjectDialogOpen(false);
+      setNewProject({
+        title: "",
+        description: "",
+        color: "bg-blue-500",
+        status: "active",
+        start_date: null,
+        end_date: null,
+      });
+    } catch (error) {
+      console.error("Error updating project:", error);
+    }
+  };
+
+  const handleEditGoal = async () => {
+    if (!selectedGoalForEdit || !selectedGoalForEdit.title?.trim()) return;
+
+    try {
+      let updateData: any = {
+        title: selectedGoalForEdit.title,
+        description: selectedGoalForEdit.description || "",
+        target_value: selectedGoalForEdit.target_value,
+        current_value: selectedGoalForEdit.current_value,
+        unit: selectedGoalForEdit.unit || "",
+        due_date: selectedGoalForEdit.due_date,
+        completed: selectedGoalForEdit.completed,
+        encrypted: false,
+        encryption_iv: null,
+        encryption_salt: null,
+        title_encrypted: false,
+        title_encryption_iv: null,
+        title_encryption_salt: null,
+      };
+
+      // Encrypt description if encryption is enabled and description exists
+      if (hasValidPassphrase && selectedGoalForEdit.description) {
+        const encryptionResult = await encryptContent(
+          selectedGoalForEdit.description,
+        );
+        if (encryptionResult) {
+          updateData = {
+            ...updateData,
+            description: encryptionResult.encryptedData,
+            encrypted: true,
+            encryption_iv: encryptionResult.iv,
+            encryption_salt: encryptionResult.salt,
+          };
+        }
+      }
+
+      // Encrypt title if encryption is enabled
+      if (hasValidPassphrase && selectedGoalForEdit.title) {
+        const titleEncryptionResult = await encryptContent(
+          selectedGoalForEdit.title,
+        );
+        if (titleEncryptionResult) {
+          updateData = {
+            ...updateData,
+            title: titleEncryptionResult.encryptedData,
+            title_encrypted: true,
+            title_encryption_iv: titleEncryptionResult.iv,
+            title_encryption_salt: titleEncryptionResult.salt,
+          };
+        }
+      }
+
+      const { error } = await supabase
+        .from("project_goals")
+        .update(updateData)
+        .eq("id", selectedGoalForEdit.id);
+
+      if (error) throw error;
+
+      // Update local state
+      const updatedGoal = {
+        ...selectedGoalForEdit,
+        encrypted: updateData.encrypted,
+        encryption_iv: updateData.encryption_iv,
+        encryption_salt: updateData.encryption_salt,
+        title_encrypted: updateData.title_encrypted,
+        title_encryption_iv: updateData.title_encryption_iv,
+        title_encryption_salt: updateData.title_encryption_salt,
+      };
+
+      setProjectGoals(
+        projectGoals.map((g) =>
+          g.id === selectedGoalForEdit.id ? updatedGoal : g,
+        ),
+      );
+
+      // Add notification
+      addNotification({
+        type: "task",
+        action: "updated",
+        title: "Goal Updated",
+        description: `"${selectedGoalForEdit.title}" goal has been updated`,
+      });
+
+      setIsEditGoalDialogOpen(false);
+      setSelectedGoalForEdit(null);
+    } catch (error) {
+      console.error("Error updating goal:", error);
+    }
+  };
+
+  const handleLinkTaskToGoal = async (goalId: string, taskId: string) => {
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ project_id: selectedProject?.id })
+        .eq("id", taskId);
+
+      if (error) throw error;
+
+      // Update local state
+      setLinkedItems((prev) => ({
+        ...prev,
+        [goalId]: {
+          ...prev[goalId],
+          tasks: [...(prev[goalId]?.tasks || []), taskId],
+        },
+      }));
+
+      addNotification({
+        type: "task",
+        action: "updated",
+        title: "Task Linked",
+        description: "Task has been linked to the goal",
+      });
+    } catch (error) {
+      console.error("Error linking task to goal:", error);
+    }
+  };
+
+  const handleLinkNoteToGoal = async (goalId: string, noteId: string) => {
+    try {
+      const { error } = await supabase
+        .from("notes")
+        .update({ project_id: selectedProject?.id })
+        .eq("id", noteId);
+
+      if (error) throw error;
+
+      // Update local state
+      setLinkedItems((prev) => ({
+        ...prev,
+        [goalId]: {
+          ...prev[goalId],
+          notes: [...(prev[goalId]?.notes || []), noteId],
+        },
+      }));
+
+      addNotification({
+        type: "note",
+        action: "updated",
+        title: "Note Linked",
+        description: "Note has been linked to the goal",
+      });
+    } catch (error) {
+      console.error("Error linking note to goal:", error);
+    }
+  };
+
   const handleDeleteProject = async (projectId: string) => {
     try {
       const { error } = await supabase
@@ -714,7 +1012,10 @@ const ProjectsSection = () => {
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
-                              setNewProject(project);
+                              setNewProject({
+                                ...project,
+                                id: project.id,
+                              });
                               setIsEditProjectDialogOpen(true);
                             }}
                           >
@@ -876,83 +1177,278 @@ const ProjectsSection = () => {
                         goal.current_value,
                         goal.target_value,
                       );
+                      const isExpanded = expandedGoalId === goal.id;
+                      const goalLinkedItems = linkedItems[goal.id] || {
+                        tasks: [],
+                        notes: [],
+                      };
+
                       return (
                         <Card key={goal.id} className="bg-card border-border">
                           <CardContent className="p-4">
-                            <div className="flex items-start justify-between mb-3">
-                              <div>
-                                <h3 className="font-medium text-foreground">
-                                  {goal.title}
-                                </h3>
-                                {goal.description && (
-                                  <p className="text-sm text-muted-foreground mt-1">
-                                    {goal.description}
-                                  </p>
-                                )}
-                              </div>
-                              <Badge
-                                variant={goal.completed ? "default" : "outline"}
-                                className={
-                                  goal.completed
-                                    ? "bg-green-100 text-green-800"
-                                    : ""
-                                }
-                              >
-                                {goal.completed ? "Completed" : "In Progress"}
-                              </Badge>
-                            </div>
-
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                  Progress: {goal.current_value} /{" "}
-                                  {goal.target_value} {goal.unit}
-                                </span>
-                                <span className="font-medium">
-                                  {Math.round(progress)}%
-                                </span>
-                              </div>
-                              <Progress value={progress} className="h-2" />
-
-                              {goal.due_date && (
-                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                  <Clock className="h-3 w-3" />
-                                  <span>
-                                    Due:{" "}
-                                    {format(
-                                      new Date(goal.due_date),
-                                      "MMM dd, yyyy",
+                            <div
+                              className="cursor-pointer"
+                              onClick={() =>
+                                setExpandedGoalId(isExpanded ? null : goal.id)
+                              }
+                            >
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="font-medium text-foreground">
+                                      {goal.title}
+                                    </h3>
+                                    {isExpanded ? (
+                                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                    ) : (
+                                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
                                     )}
+                                  </div>
+                                  {goal.description && (
+                                    <p className="text-sm text-muted-foreground mt-1">
+                                      {goal.description}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge
+                                    variant={
+                                      goal.completed ? "default" : "outline"
+                                    }
+                                    className={
+                                      goal.completed
+                                        ? "bg-green-100 text-green-800"
+                                        : ""
+                                    }
+                                  >
+                                    {goal.completed
+                                      ? "Completed"
+                                      : "In Progress"}
+                                  </Badge>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 w-6 p-0"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <MoreHorizontal className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedGoalForEdit(goal);
+                                          setIsEditGoalDialogOpen(true);
+                                        }}
+                                      >
+                                        <Edit className="mr-2 h-4 w-4" />
+                                        Edit Goal
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-muted-foreground">
+                                    Progress: {goal.current_value} /{" "}
+                                    {goal.target_value} {goal.unit}
+                                  </span>
+                                  <span className="font-medium">
+                                    {Math.round(progress)}%
                                   </span>
                                 </div>
-                              )}
+                                <Progress value={progress} className="h-2" />
 
-                              <div className="flex items-center gap-2 mt-3">
-                                <Input
-                                  type="number"
-                                  placeholder="Update progress"
-                                  className="w-32 h-8"
-                                  onKeyPress={(e) => {
-                                    if (e.key === "Enter") {
-                                      const value = parseFloat(
-                                        (e.target as HTMLInputElement).value,
-                                      );
-                                      if (!isNaN(value)) {
-                                        handleUpdateGoalProgress(
-                                          goal.id,
-                                          value,
-                                        );
-                                        (e.target as HTMLInputElement).value =
-                                          "";
-                                      }
-                                    }
-                                  }}
-                                />
-                                <span className="text-xs text-muted-foreground">
-                                  {goal.unit}
-                                </span>
+                                {goal.due_date && (
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <Clock className="h-3 w-3" />
+                                    <span>
+                                      Due:{" "}
+                                      {format(
+                                        new Date(goal.due_date),
+                                        "MMM dd, yyyy",
+                                      )}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             </div>
+
+                            {isExpanded && (
+                              <div className="mt-4 pt-4 border-t border-border space-y-4">
+                                {/* Progress Update */}
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    type="number"
+                                    placeholder="Update progress"
+                                    className="w-32 h-8"
+                                    onKeyPress={(e) => {
+                                      if (e.key === "Enter") {
+                                        const value = parseFloat(
+                                          (e.target as HTMLInputElement).value,
+                                        );
+                                        if (!isNaN(value)) {
+                                          handleUpdateGoalProgress(
+                                            goal.id,
+                                            value,
+                                          );
+                                          (e.target as HTMLInputElement).value =
+                                            "";
+                                        }
+                                      }
+                                    }}
+                                  />
+                                  <span className="text-xs text-muted-foreground">
+                                    {goal.unit}
+                                  </span>
+                                </div>
+
+                                {/* Linked Tasks */}
+                                <div>
+                                  <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                                    <CheckSquare className="h-4 w-4" />
+                                    Linked Tasks
+                                  </h4>
+                                  <div className="space-y-2">
+                                    {goalLinkedItems.tasks.map((taskId) => {
+                                      const task = availableTasks.find(
+                                        (t) => t.id === taskId,
+                                      );
+                                      return task ? (
+                                        <div
+                                          key={taskId}
+                                          className="flex items-center justify-between bg-muted/30 p-2 rounded"
+                                        >
+                                          <span className="text-sm">
+                                            {task.title}
+                                          </span>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0"
+                                            onClick={() => {
+                                              setLinkedItems((prev) => ({
+                                                ...prev,
+                                                [goal.id]: {
+                                                  ...prev[goal.id],
+                                                  tasks:
+                                                    prev[goal.id]?.tasks.filter(
+                                                      (id) => id !== taskId,
+                                                    ) || [],
+                                                },
+                                              }));
+                                            }}
+                                          >
+                                            <X className="h-3 w-3" />
+                                          </Button>
+                                        </div>
+                                      ) : null;
+                                    })}
+                                    <Select
+                                      onValueChange={(taskId) =>
+                                        handleLinkTaskToGoal(goal.id, taskId)
+                                      }
+                                    >
+                                      <SelectTrigger className="h-8">
+                                        <SelectValue placeholder="Link a task" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {availableTasks
+                                          .filter(
+                                            (task) =>
+                                              !goalLinkedItems.tasks.includes(
+                                                task.id,
+                                              ),
+                                          )
+                                          .map((task) => (
+                                            <SelectItem
+                                              key={task.id}
+                                              value={task.id}
+                                            >
+                                              {task.title}
+                                            </SelectItem>
+                                          ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+
+                                {/* Linked Notes */}
+                                <div>
+                                  <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                                    <FileText className="h-4 w-4" />
+                                    Linked Notes
+                                  </h4>
+                                  <div className="space-y-2">
+                                    {goalLinkedItems.notes.map((noteId) => {
+                                      const note = availableNotes.find(
+                                        (n) => n.id === noteId,
+                                      );
+                                      return note ? (
+                                        <div
+                                          key={noteId}
+                                          className="flex items-center justify-between bg-muted/30 p-2 rounded"
+                                        >
+                                          <span className="text-sm">
+                                            {note.title}
+                                          </span>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0"
+                                            onClick={() => {
+                                              setLinkedItems((prev) => ({
+                                                ...prev,
+                                                [goal.id]: {
+                                                  ...prev[goal.id],
+                                                  notes:
+                                                    prev[goal.id]?.notes.filter(
+                                                      (id) => id !== noteId,
+                                                    ) || [],
+                                                },
+                                              }));
+                                            }}
+                                          >
+                                            <X className="h-3 w-3" />
+                                          </Button>
+                                        </div>
+                                      ) : null;
+                                    })}
+                                    <Select
+                                      onValueChange={(noteId) =>
+                                        handleLinkNoteToGoal(goal.id, noteId)
+                                      }
+                                    >
+                                      <SelectTrigger className="h-8">
+                                        <SelectValue placeholder="Link a note" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {availableNotes
+                                          .filter(
+                                            (note) =>
+                                              !goalLinkedItems.notes.includes(
+                                                note.id,
+                                              ),
+                                          )
+                                          .map((note) => (
+                                            <SelectItem
+                                              key={note.id}
+                                              value={note.id}
+                                            >
+                                              {note.title}
+                                            </SelectItem>
+                                          ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
                       );
@@ -1152,6 +1648,192 @@ const ProjectsSection = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Project Dialog */}
+      <Dialog
+        open={isEditProjectDialogOpen}
+        onOpenChange={setIsEditProjectDialogOpen}
+      >
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Project</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label
+                htmlFor="edit-project-title"
+                className="text-sm font-medium"
+              >
+                Title *
+              </label>
+              <Input
+                id="edit-project-title"
+                placeholder="Project title"
+                value={newProject.title}
+                onChange={(e) =>
+                  setNewProject({ ...newProject, title: e.target.value })
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <label
+                htmlFor="edit-project-description"
+                className="text-sm font-medium"
+              >
+                Description
+              </label>
+              <Textarea
+                id="edit-project-description"
+                placeholder="Project description"
+                value={newProject.description}
+                onChange={(e) =>
+                  setNewProject({ ...newProject, description: e.target.value })
+                }
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Color</label>
+                <div className="flex gap-2 flex-wrap">
+                  {projectColors.map((color) => (
+                    <button
+                      key={color}
+                      className={`w-6 h-6 rounded-full ${color} border-2 ${
+                        newProject.color === color
+                          ? "border-foreground"
+                          : "border-transparent"
+                      }`}
+                      onClick={() => setNewProject({ ...newProject, color })}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Status</label>
+                <Select
+                  value={newProject.status}
+                  onValueChange={(value) =>
+                    setNewProject({
+                      ...newProject,
+                      status: value as "active" | "completed" | "archived",
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Start Date</label>
+                <Popover
+                  open={datePickerOpen.start}
+                  onOpenChange={(open) =>
+                    setDatePickerOpen((prev) => ({ ...prev, start: open }))
+                  }
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="justify-start text-left font-normal"
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {newProject.start_date ? (
+                        format(new Date(newProject.start_date), "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={
+                        newProject.start_date
+                          ? new Date(newProject.start_date)
+                          : undefined
+                      }
+                      onSelect={(date) => {
+                        setNewProject({
+                          ...newProject,
+                          start_date: date ? date.toISOString() : null,
+                        });
+                        setDatePickerOpen((prev) => ({
+                          ...prev,
+                          start: false,
+                        }));
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">End Date</label>
+                <Popover
+                  open={datePickerOpen.end}
+                  onOpenChange={(open) =>
+                    setDatePickerOpen((prev) => ({ ...prev, end: open }))
+                  }
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="justify-start text-left font-normal"
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {newProject.end_date ? (
+                        format(new Date(newProject.end_date), "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={
+                        newProject.end_date
+                          ? new Date(newProject.end_date)
+                          : undefined
+                      }
+                      onSelect={(date) => {
+                        setNewProject({
+                          ...newProject,
+                          end_date: date ? date.toISOString() : null,
+                        });
+                        setDatePickerOpen((prev) => ({ ...prev, end: false }));
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditProjectDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditProject}
+              disabled={!newProject.title?.trim()}
+            >
+              Update Project
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* New Goal Dialog */}
       <Dialog open={isNewGoalDialogOpen} onOpenChange={setIsNewGoalDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
@@ -1277,6 +1959,183 @@ const ProjectsSection = () => {
               disabled={!newGoal.title?.trim()}
             >
               Add Goal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Goal Dialog */}
+      <Dialog
+        open={isEditGoalDialogOpen}
+        onOpenChange={setIsEditGoalDialogOpen}
+      >
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Goal</DialogTitle>
+          </DialogHeader>
+          {selectedGoalForEdit && (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <label
+                  htmlFor="edit-goal-title"
+                  className="text-sm font-medium"
+                >
+                  Title *
+                </label>
+                <Input
+                  id="edit-goal-title"
+                  placeholder="Goal title"
+                  value={selectedGoalForEdit.title}
+                  onChange={(e) =>
+                    setSelectedGoalForEdit({
+                      ...selectedGoalForEdit,
+                      title: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <label
+                  htmlFor="edit-goal-description"
+                  className="text-sm font-medium"
+                >
+                  Description
+                </label>
+                <Textarea
+                  id="edit-goal-description"
+                  placeholder="Goal description"
+                  value={selectedGoalForEdit.description}
+                  onChange={(e) =>
+                    setSelectedGoalForEdit({
+                      ...selectedGoalForEdit,
+                      description: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Target Value</label>
+                  <Input
+                    type="number"
+                    placeholder="100"
+                    value={selectedGoalForEdit.target_value}
+                    onChange={(e) =>
+                      setSelectedGoalForEdit({
+                        ...selectedGoalForEdit,
+                        target_value: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Current Value</label>
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    value={selectedGoalForEdit.current_value}
+                    onChange={(e) =>
+                      setSelectedGoalForEdit({
+                        ...selectedGoalForEdit,
+                        current_value: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Unit</label>
+                  <Input
+                    placeholder="hours, tasks, etc."
+                    value={selectedGoalForEdit.unit}
+                    onChange={(e) =>
+                      setSelectedGoalForEdit({
+                        ...selectedGoalForEdit,
+                        unit: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">
+                  Due Date (Optional)
+                </label>
+                <Popover
+                  open={datePickerOpen.goal}
+                  onOpenChange={(open) =>
+                    setDatePickerOpen((prev) => ({ ...prev, goal: open }))
+                  }
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="justify-start text-left font-normal"
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {selectedGoalForEdit.due_date ? (
+                        format(new Date(selectedGoalForEdit.due_date), "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={
+                        selectedGoalForEdit.due_date
+                          ? new Date(selectedGoalForEdit.due_date)
+                          : undefined
+                      }
+                      onSelect={(date) => {
+                        setSelectedGoalForEdit({
+                          ...selectedGoalForEdit,
+                          due_date: date ? date.toISOString() : null,
+                        });
+                        setDatePickerOpen((prev) => ({ ...prev, goal: false }));
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="edit-goal-completed"
+                  checked={selectedGoalForEdit.completed}
+                  onChange={(e) =>
+                    setSelectedGoalForEdit({
+                      ...selectedGoalForEdit,
+                      completed: e.target.checked,
+                    })
+                  }
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <label
+                  htmlFor="edit-goal-completed"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Mark as completed
+                </label>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditGoalDialogOpen(false);
+                setSelectedGoalForEdit(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditGoal}
+              disabled={!selectedGoalForEdit?.title?.trim()}
+            >
+              Update Goal
             </Button>
           </DialogFooter>
         </DialogContent>
