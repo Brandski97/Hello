@@ -28,6 +28,7 @@ import {
   Key,
   Edit,
   FolderOpen,
+  BarChart3,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -58,6 +59,7 @@ import CalendarView from "./calendar/CalendarView";
 import NotesSection from "./notes/NotesSection";
 import TaskManager from "./tasks/TaskManager";
 import ProjectsSection from "./projects/ProjectsSection";
+import Dashboard from "./layout/Dashboard";
 import EncryptionSetup from "./auth/EncryptionSetup";
 
 interface AIInsightProps {
@@ -165,7 +167,7 @@ const AIAssistant = () => {
 };
 
 export default function Home() {
-  const [activeView, setActiveView] = useState("calendar");
+  const [activeView, setActiveView] = useState("dashboard");
   const [theme, setTheme] = useState<"light" | "dark" | "system">("dark");
   const [accountDialogOpen, setAccountDialogOpen] = useState(false);
   const [encryptionDialogOpen, setEncryptionDialogOpen] = useState(false);
@@ -451,6 +453,14 @@ export default function Home() {
           >
             <FolderOpen className="mr-3 h-5 w-5" />
             Projects
+          </Button>
+          <Button
+            variant={activeView === "dashboard" ? "default" : "ghost"}
+            className="w-full justify-start h-12 text-left font-medium transition-all duration-200 hover:bg-accent/50"
+            onClick={() => setActiveView("dashboard")}
+          >
+            <BarChart3 className="mr-3 h-5 w-5" />
+            Dashboard
           </Button>
           <Button
             variant={activeView === "ai" ? "default" : "ghost"}
@@ -790,6 +800,7 @@ export default function Home() {
         {/* Content Area */}
         <main className="flex-1 overflow-auto bg-background">
           <div className="h-full">
+            {activeView === "dashboard" && <Dashboard />}
             {activeView === "calendar" && <CalendarView />}
             {activeView === "notes" && <NotesSection />}
             {activeView === "tasks" && <TaskManager />}
