@@ -195,6 +195,28 @@ export default function Home() {
     addNotification,
   } = useNotifications();
 
+  // Listen for navigation events from projects
+  useEffect(() => {
+    const handleNavigateToSection = (event: CustomEvent) => {
+      const { section, itemId } = event.detail;
+      setActiveView(section);
+      // You can also store the itemId to highlight or scroll to the specific item
+      // This would require passing the itemId to the respective components
+    };
+
+    window.addEventListener(
+      "navigateToSection",
+      handleNavigateToSection as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "navigateToSection",
+        handleNavigateToSection as EventListener,
+      );
+    };
+  }, []);
+
   // Initialize theme from localStorage or default to dark
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as
